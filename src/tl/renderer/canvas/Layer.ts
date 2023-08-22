@@ -333,7 +333,7 @@ abstract class CanvasLayerRenderer<LayerType extends Layer> extends LayerRendere
   /**
    * Clean up.
    */
-  public disposeInternal(): void {
+  protected disposeInternal(): void {
     delete this.frameState;
     super.disposeInternal();
   }

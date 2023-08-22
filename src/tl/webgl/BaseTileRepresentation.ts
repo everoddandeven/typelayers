@@ -104,7 +104,7 @@ abstract class BaseTileRepresentation extends EventTarget {
     }
   }
 
-  public disposeInternal(): void {
+  protected disposeInternal(): void {
     this.tile.removeEventListener(EventType.CHANGE, this.handleTileChange_);
   }
 }

@@ -529,7 +529,7 @@ class WebGLHelper extends Disposable {
   /**
    * Clean up.
    */
-  public disposeInternal(): void {
+  protected disposeInternal(): void {
     const canvas = this.gl_.canvas;
     canvas.removeEventListener(
       ContextEventType.LOST,

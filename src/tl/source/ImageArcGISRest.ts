@@ -3,7 +3,7 @@
  */
 
 import EventType from '../events/EventType';
-import ImageSource, {defaultImageLoadFunction, ImageSourceOptions} from './Image';
+import ImageSource, {defaultImageLoadFunction, ImageLoadFunction, ImageSourceOptions} from './Image';
 import ImageWrapper from '../Image';
 import {assert} from '../asserts';
 import {containsExtent, Extent, getHeight, getWidth} from '../extent';
@@ -140,7 +140,7 @@ class ImageArcGISRest extends ImageSource {
    * @return {Object} Params.
    * @api
    */
-  getParams() {
+  public getParams(): {[p: string]: any} {
     return this.params_;
   }
 
@@ -237,7 +237,7 @@ class ImageArcGISRest extends ImageSource {
    * @return {import("../Image").LoadFunction} The image load function.
    * @api
    */
-  getImageLoadFunction() {
+  public getImageLoadFunction(): ImageLoadFunction {
     return this.imageLoadFunction_;
   }
 
@@ -250,7 +250,7 @@ class ImageArcGISRest extends ImageSource {
    * @return {string} Request URL.
    * @private
    */
-  getRequestUrl_(extent, size, pixelRatio, projection, params) {
+  private getRequestUrl_(extent: Extent, size: Size, pixelRatio: number, projection: Projection, params: {[p: string]: any}): string {
     // ArcGIS Server only wants the numeric portion of the projection ID.
     // (if there is no numeric portion the entire projection code must
     // form a valid ArcGIS SpatialReference definition).
@@ -281,7 +281,7 @@ class ImageArcGISRest extends ImageSource {
    * @return {string|undefined} URL.
    * @api
    */
-  getUrl() {
+  public getUrl(): string {
     return this.url_;
   }
 
@@ -290,7 +290,7 @@ class ImageArcGISRest extends ImageSource {
    * @param {import("../Image").LoadFunction} imageLoadFunction Image load function.
    * @api
    */
-  setImageLoadFunction(imageLoadFunction) {
+  public setImageLoadFunction(imageLoadFunction: ImageLoadFunction): void {
     this.image_ = null;
     this.imageLoadFunction_ = imageLoadFunction;
     this.changed();
@@ -301,7 +301,7 @@ class ImageArcGISRest extends ImageSource {
    * @param {string|undefined} url URL.
    * @api
    */
-  setUrl(url) {
+  public setUrl(url: string): void {
     if (url != this.url_) {
       this.url_ = url;
       this.image_ = null;
@@ -314,7 +314,7 @@ class ImageArcGISRest extends ImageSource {
    * @param {Object} params Params.
    * @api
    */
-  updateParams(params) {
+  public updateParams(params: {[p: string]: any}): void {
     Object.assign(this.params_, params);
     this.image_ = null;
     this.changed();

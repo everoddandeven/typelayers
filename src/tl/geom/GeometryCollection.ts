@@ -330,7 +330,7 @@ export default class GeometryCollection extends Geometry {
   /**
    * Clean up.
    */
-  public disposeInternal(): void {
+  protected disposeInternal(): void {
     this.unlistenGeometriesChange_();
     super.disposeInternal();
   }

@@ -3,16 +3,16 @@
  */
 
 import EventType from '../events/EventType';
-import ImageSource, {defaultImageLoadFunction} from './Image';
+import ImageSource, {defaultImageLoadFunction, ImageLoadFunction} from './Image';
 import ImageWrapper from '../Image';
-import {DEFAULT_VERSION} from './wms';
+import {DEFAULT_VERSION, ServerType} from './wms';
 import {appendParams} from '../uri';
 import {assert} from '../asserts';
 import {calculateSourceResolution} from '../reproj';
 import {ceil, floor, round} from '../math';
 import {compareVersions} from '../string';
 import {
-  containsExtent,
+  containsExtent, Extent,
   getCenter,
   getForViewAndSize,
   getHeight,
@@ -20,45 +20,35 @@ import {
 } from '../extent';
 import {createCanvasContext2D} from '../dom';
 import {get as getProjection, transform} from '../proj';
+import {Size} from "../size";
+import Projection from "../proj/Projection";
+import {Coordinate} from "../coordinate";
 
 /**
  * Number of decimal digits to consider in integer values when rounding.
  * @type {number}
  */
-const DECIMALS = 4;
+const DECIMALS: number = 4;
 
 /**
  * @const
  * @type {import("../size").Size}
  */
-const GETFEATUREINFO_IMAGE_SIZE = [101, 101];
+const GETFEATUREINFO_IMAGE_SIZE: [number, number] = [101, 101];
 
-/**
- * @typedef {Object} Options
- * @property {import("./Source").AttributionLike} [attributions] Attributions.
- * @property {null|string} [crossOrigin] The `crossOrigin` attribute for loaded images.  Note that
- * you must provide a `crossOrigin` value if you want to access pixel data with the Canvas renderer.
- * See https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image for more detail.
- * @property {boolean} [hidpi=true] Use the `tl/Map#pixelRatio` value when requesting
- * the image from the remote server.
- * @property {import("./wms").ServerType} [serverType] The type of
- * the remote WMS server: `mapserver`, `geoserver`, `carmentaserver`, or `qgis`.
- * Only needed if `hidpi` is `true`.
- * @property {import("../Image").LoadFunction} [imageLoadFunction] Optional function to load an image given a URL.
- * @property {boolean} [interpolate=true] Use interpolated values when resampling.  By default,
- * linear interpolation is used when resampling.  Set to false to use the nearest neighbor instead.
- * @property {Object<string,*>} [params] WMS request parameters.
- * At least a `LAYERS` param is required. `STYLES` is
- * `''` by default. `VERSION` is `1.3.0` by default. `WIDTH`, `HEIGHT`, `BBOX`
- * and `CRS` (`SRS` for WMS version < 1.3.0) will be set dynamically.
- * @property {import("../proj").ProjectionLike} [projection] Projection. Default is the view projection.
- * @property {number} [ratio=1.5] Ratio. `1` means image requests are the size of the map viewport, `2` means
- * twice the width and height of the map viewport, and so on. Must be `1` or
- * higher.
- * @property {Array<number>} [resolutions] Resolutions.
- * If specified, requests will be made for these resolutions only.
- * @property {string} [url] WMS service URL.
- */
+export interface ImageWMSOptions {
+  attributions?: import("./Source").AttributionLike;
+  crossOrigin?: null | string;
+  hidpi?: boolean;
+  serverType?: import("./wms").ServerType;
+  imageLoadFunction?: import("../Image").LoadFunction;
+  interpolate?: boolean;
+  params?: {[p: string]: any};
+  projection?: import("../proj").ProjectionLike;
+  ratio?: number;
+  resolutions?: Array<number>;
+  url?: string;
+}
 
 /**
  * @classdesc
@@ -71,7 +61,21 @@ class ImageWMS extends ImageSource {
   /**
    * @param {Options} [options] ImageWMS options.
    */
-  constructor(options) {
+
+  private context_: CanvasRenderingContext2D;
+  private crossOrigin_?: string;
+  private url_?: string;
+  private imageLoadFunction_: ImageLoadFunction;
+  private params_?: {[p: string]: any};
+  private v13_: boolean;
+  private serverType_: ServerType;
+  private hidpi_: boolean;
+  private image_?: ImageWrapper;
+  private imageSize_?: Size;
+  private renderedRevision_: number;
+  private ratio_: number;
+
+  constructor(options?: ImageWMSOptions) {
     options = options ? options : {};
 
     super({
@@ -85,7 +89,7 @@ class ImageWMS extends ImageSource {
      * @private
      * @type {CanvasRenderingContext2D}
      */
-    this.context_ = createCanvasContext2D(1, 1);
+    this.context_ = <CanvasRenderingContext2D>createCanvasContext2D(1, 1);
 
     /**
      * @private
@@ -173,7 +177,7 @@ class ImageWMS extends ImageSource {
    * @return {string|undefined} GetFeatureInfo URL.
    * @api
    */
-  getFeatureInfoUrl(coordinate, resolution, projection, params) {
+  public getFeatureInfoUrl(coordinate: Coordinate, resolution: number, projection: Projection, params: {[p: string]: any}): string {
     if (this.url_ === undefined) {
       return undefined;
     }
@@ -235,7 +239,7 @@ class ImageWMS extends ImageSource {
    * @return {string|undefined} GetLegendGraphic URL.
    * @api
    */
-  getLegendUrl(resolution, params) {
+  public getLegendUrl(resolution?: number, params?: {[p: string]: any}): string {
     if (this.url_ === undefined) {
       return undefined;
     }
@@ -275,7 +279,7 @@ class ImageWMS extends ImageSource {
    * @return {Object} Params.
    * @api
    */
-  getParams() {
+  public getParams(): {[p: string]: any} {
     return this.params_;
   }
 
@@ -286,7 +290,7 @@ class ImageWMS extends ImageSource {
    * @param {import("../proj/Projection").default} projection Projection.
    * @return {import("../Image").default} Single image.
    */
-  getImageInternal(extent, resolution, pixelRatio, projection) {
+  protected getImageInternal(extent: Extent, resolution: number, pixelRatio: number, projection: Projection): ImageWrapper {
     if (this.url_ === undefined) {
       return null;
     }
@@ -377,7 +381,7 @@ class ImageWMS extends ImageSource {
    * @return {import("../Image").LoadFunction} The image load function.
    * @api
    */
-  getImageLoadFunction() {
+  public getImageLoadFunction(): ImageLoadFunction {
     return this.imageLoadFunction_;
   }
 
@@ -390,7 +394,7 @@ class ImageWMS extends ImageSource {
    * @return {string} Request URL.
    * @private
    */
-  getRequestUrl_(extent, size, pixelRatio, projection, params) {
+  private getRequestUrl_(extent: Extent, size: Size, pixelRatio: number, projection: Projection, params: {[p: string]: any}): string {
     assert(this.url_ !== undefined, 9); // `url` must be configured or set using `#setUrl()`
 
     params[this.v13_ ? 'CRS' : 'SRS'] = projection.getCode();
@@ -426,7 +430,7 @@ class ImageWMS extends ImageSource {
     params['HEIGHT'] = size[1];
 
     const axisOrientation = projection.getAxisOrientation();
-    let bbox;
+    let bbox: Extent;
     if (this.v13_ && axisOrientation.substr(0, 2) == 'ne') {
       bbox = [extent[1], extent[0], extent[3], extent[2]];
     } else {
@@ -442,7 +446,7 @@ class ImageWMS extends ImageSource {
    * @return {string|undefined} URL.
    * @api
    */
-  getUrl() {
+  public getUrl(): string {
     return this.url_;
   }
 
@@ -451,7 +455,7 @@ class ImageWMS extends ImageSource {
    * @param {import("../Image").LoadFunction} imageLoadFunction Image load function.
    * @api
    */
-  setImageLoadFunction(imageLoadFunction) {
+  public setImageLoadFunction(imageLoadFunction: ImageLoadFunction): void {
     this.image_ = null;
     this.imageLoadFunction_ = imageLoadFunction;
     this.changed();
@@ -462,7 +466,7 @@ class ImageWMS extends ImageSource {
    * @param {string|undefined} url URL.
    * @api
    */
-  setUrl(url) {
+  public setUrl(url: string): void {
     if (url != this.url_) {
       this.url_ = url;
       this.image_ = null;
@@ -475,7 +479,7 @@ class ImageWMS extends ImageSource {
    * @param {Object} params Params.
    * @api
    */
-  updateParams(params) {
+  public updateParams(params: {[p: string]: any}): void {
     Object.assign(this.params_, params);
     this.updateV13_();
     this.image_ = null;
@@ -485,7 +489,7 @@ class ImageWMS extends ImageSource {
   /**
    * @private
    */
-  updateV13_() {
+  private updateV13_(): void {
     const version = this.params_['VERSION'] || DEFAULT_VERSION;
     this.v13_ = compareVersions(version, '1.3') >= 0;
   }

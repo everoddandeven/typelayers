@@ -95,7 +95,7 @@ export default class Control extends BaseObject {
   /**
    * Clean up.
    */
-  public disposeInternal(): void {
+  protected disposeInternal(): void {
     removeNode(this.element);
     super.disposeInternal();
   }

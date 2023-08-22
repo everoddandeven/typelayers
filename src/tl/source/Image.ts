@@ -12,6 +12,10 @@ import {Extent} from "../extent/Extent";
 import Projection from "../proj/Projection";
 import {EventsKey} from "../events";
 import {ImageBase} from "../index";
+import ImageWrapper from "../Image";
+import BaseEvent from "../events/Event";
+import {CombinedOnSignature, EventTypes, OnSignature} from "../Observable";
+import {ObjectEventTypes} from "../ObjectEventType";
 
 /**
  * @enum {string}
@@ -42,12 +46,8 @@ export enum ImageSourceEventType {
 export type ImageSourceEventTypes = 'imageloadend'|'imageloaderror'|'imageloadstart';
 
 /**
- * @typedef {'imageloadend'|'imageloaderror'|'imageloadstart'} ImageSourceEventTypes
- */
-
-/**
  * @classdesc
- * Events emitted by {@link module:tl/source/Image~ImageSource} instances are instances of this
+ * Events emitted by module:tl/source/ImageSource instances are instances of this
  * type.
  */
 export class ImageSourceEvent extends Event {
@@ -56,9 +56,9 @@ export class ImageSourceEvent extends Event {
    * @param {import("../Image").default} image The image.
    */
 
-  public image: Image;
+  public image: ImageWrapper;
 
-  constructor(type: string, image: Image) {
+  constructor(type: string, image: ImageWrapper) {
     super(type);
 
     /**
@@ -70,33 +70,17 @@ export class ImageSourceEvent extends Event {
   }
 }
 
-/***
- * @template Return
- * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event").default, Return> &
- *   import("../Observable").OnSignature<import("../ObjectEventType").Types, import("../Object").ObjectEvent, Return> &
- *   import("../Observable").OnSignature<ImageSourceEventTypes, ImageSourceEvent, Return> &
- *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types
- *     |ImageSourceEventTypes, Return>} ImageSourceOnSignature
- */
-
-
-
-/**
- * @typedef {Object} Options
- * @property {import("./Source").AttributionLike} [attributions] Attributions.
- * @property {boolean} [interpolate=true] Use interpolated values when resampling.  By default,
- * linear interpolation is used when resampling.  Set to false to use the nearest neighbor instead.
- * @property {import("../proj").ProjectionLike} [projection] Projection.
- * @property {Array<number>} [resolutions] Resolutions.
- * @property {import("./Source").SourceState} [state] SourceState.
- */
+export type ImageSourceOnSignature<Return> = 
+    OnSignature<EventTypes, BaseEvent, Return> &
+    OnSignature<ImageSourceEventTypes, ImageSourceEvent, Return> &
+    CombinedOnSignature<EventTypes | ObjectEventTypes | ImageSourceEventTypes, Return>;
 
 export interface ImageSourceOptions
 {
   attributions?: AttributionLike,
   interpolate?: boolean,
   projection?: ProjectionLike,
-  resolution?: number[],
+  resolutions?: number[],
   state?: SourceState
 }
 
@@ -106,7 +90,7 @@ export interface ImageSourceOptions
  * instantiated in apps.
  * Base class for sources providing a single image.
  * @abstract
- * @fires module:tl/source/Image.ImageSourceEvent
+ * ImageSourceEvent
  * @api
  */
 export default abstract class ImageSource extends Source {
@@ -115,11 +99,12 @@ export default abstract class ImageSource extends Source {
    */
 
   private resolutions_?: number[];
-  private reprojectedImage_?: any;
+  private reprojectedImage_?: ReprojImage;
   private reprojectedRevision_: number;
+  private oldReprojectedImage_?: ReprojImage;
 
-  public on: EventsKey;
-  public once: EventsKey;
+  public on: ImageSourceOnSignature<EventsKey>;
+  public once: ImageSourceOnSignature<EventsKey>;
   public un: ImageSourceOnSignature<void>;
 
 
@@ -135,17 +120,17 @@ export default abstract class ImageSource extends Source {
     /***
      * @type {ImageSourceOnSignature<import("../events").EventsKey>}
      */
-    this.on;
+    //this.on;
 
     /***
      * @type {ImageSourceOnSignature<import("../events").EventsKey>}
      */
-    this.once;
+    //this.once;
 
     /***
      * @type {ImageSourceOnSignature<void>}
      */
-    this.un;
+    //this.un;
 
     /**
      * @private
@@ -204,7 +189,7 @@ export default abstract class ImageSource extends Source {
    * @param {import("../proj/Projection").default} projection Projection.
    * @return {import("../ImageBase").default} Single image.
    */
-  public getImage(extent: Extent, resolution: number, pixelRatio: number, projection: Projection) {
+  public getImage(extent: Extent, resolution: number, pixelRatio: number, projection: Projection): ImageBase {
     const sourceProjection: Projection = this.getProjection();
     if (
       !sourceProjection ||
@@ -225,7 +210,8 @@ export default abstract class ImageSource extends Source {
       ) {
         return this.reprojectedImage_;
       }
-      this.reprojectedImage_.dispose();
+      //this.reprojectedImage_.dispose();
+      this.oldReprojectedImage_ = this.reprojectedImage_;
       this.reprojectedImage_ = null;
     }
 
@@ -260,8 +246,8 @@ export default abstract class ImageSource extends Source {
    * @param {import("../events/Event").default} event Event.
    * @protected
    */
-  public handleImageChange(event: Event): void {
-    const image = /** @type {import("../Image").default} */ (event.target);
+  public handleImageChange(event: BaseEvent): void {
+    const image = <ImageWrapper>event.target;
     let type: ImageSourceEventType;
     switch (image.getState()) {
       case ImageState.LOADING:
@@ -269,6 +255,11 @@ export default abstract class ImageSource extends Source {
         type = ImageSourceEventType.IMAGELOADSTART;
         break;
       case ImageState.LOADED:
+        if (this.oldReprojectedImage_ != null)
+        {
+          this.oldReprojectedImage_.dispose();
+          this.oldReprojectedImage_ = null;
+        }
         this.loading = false;
         type = ImageSourceEventType.IMAGELOADEND;
         break;
@@ -286,14 +277,14 @@ export default abstract class ImageSource extends Source {
 }
 
 /**
- * Default image load function for image sources that use import("../Image").Image image
+ * Default image load function for image sources that use import("../Image").Image
  * instances.
  * @param {import("../Image").default} image Image.
  * @param {string} src Source.
  */
 
-export type ImageLoadFunction = (image: Image, src: string) => void;
+export type ImageLoadFunction = (image: ImageWrapper, src: string) => void;
 
-export function defaultImageLoadFunction(image: Image, src: string): void {
-  /** @type {HTMLImageElement|HTMLVideoElement} */ (image.getImage()).src = src;
+export function defaultImageLoadFunction(image: ImageWrapper, src: string): void {
+  (<HTMLImageElement|HTMLVideoElement>image.getImage()).src = src;
 }

@@ -136,7 +136,7 @@ class Target extends Disposable {
   /**
    * Clean up.
    */
-  public disposeInternal(): void {
+  protected disposeInternal(): void {
     this.listeners_ && clear(this.listeners_);
   }
 

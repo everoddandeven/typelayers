@@ -20,14 +20,14 @@ import {ProjectionLike} from "../proj";
  * {@link module:tl/extent~Extent} the image extent, `{number}` the image resolution,
  * `{number}` the pixel ratio of the map, {@link module:tl/size~Size} the image size,
  * and {@link module:tl/proj/Projection~Projection} the image projection. The canvas returned by
- * this function is cached by the source. The this keyword inside the function
+ * this function is cached by the source. The 'this' keyword inside the function
  * references the {@link module:tl/source/ImageCanvas~ImageCanvasSource}.
  *
  * @typedef {function(this:import("../ImageCanvas").default, import("../extent").Extent, number,
  *     number, import("../size").Size, import("../proj/Projection").default): HTMLCanvasElement} FunctionType
  */
 
-export type FunctionType = (
+export type ImageCanvasFunctionType = (
     imageCanvas: ImageCanvas,
     extent: Extent,
     resolution: number,
@@ -37,7 +37,7 @@ export type FunctionType = (
 
 interface ImageCanvasOptions {
   attributions?: AttributionLike;
-  canvasFunction?: FunctionType;
+  canvasFunction?: ImageCanvasFunctionType;
   interpolate?: boolean;
   projection?: ProjectionLike;
   ratio?: number;
@@ -54,7 +54,7 @@ class ImageCanvasSource extends ImageSource {
   /**
    * @param {Options} [options] ImageCanvas options.
    */
-  private canvasFunction_: FunctionType;
+  private canvasFunction_: ImageCanvasFunctionType;
   private canvas_: ImageCanvas;
   private renderedRevision_: number;
   private ratio_: number;

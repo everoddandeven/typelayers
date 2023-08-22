@@ -71,9 +71,9 @@ import {
   clear as clearTransformFuncs,
   get as getTransformFunc,
 } from './proj/transforms';
-import {applyTransform, getWidth} from './extent';
+import {applyTransform, Extent, getWidth} from './extent';
 import {clamp, modulo} from './math';
-import {equals, getWorldsAway} from './coordinate';
+import {Coordinate, equals, getWorldsAway} from './coordinate';
 import {getDistance} from './sphere';
 import {warn} from './console';
 
@@ -504,9 +504,9 @@ export function getTransform(source, destination) {
  * @return {import("./coordinate").Coordinate} Coordinate.
  * @api
  */
-export function transform(coordinate, source, destination) {
-  const transformFunc = getTransform(source, destination);
-  return transformFunc(coordinate, undefined, coordinate.length);
+export function transform(coordinate: Coordinate, source: ProjectionLike, destination: ProjectionLike): Coordinate {
+  const transformFunc: TransformFunction = getTransform(source, destination);
+  return <Coordinate>transformFunc(coordinate, undefined, coordinate.length);
 }
 
 /**
@@ -521,7 +521,7 @@ export function transform(coordinate, source, destination) {
  * @return {import("./extent").Extent} The transformed extent.
  * @api
  */
-export function transformExtent(extent, source, destination, stops?: number) {
+export function transformExtent(extent: Extent, source: ProjectionLike, destination: ProjectionLike, stops?: number): Extent {
   const transformFunc = getTransform(source, destination);
   return applyTransform(extent, transformFunc, undefined, stops);
 }
@@ -535,21 +535,21 @@ export function transformExtent(extent, source, destination, stops?: number) {
  * @return {import("./coordinate").Coordinate} Point.
  */
 export function transformWithProjections(
-  point,
-  sourceProjection,
-  destinationProjection
-) {
+  point: Coordinate,
+  sourceProjection: Projection,
+  destinationProjection: Projection
+): Coordinate {
   const transformFunc = getTransformFromProjections(
     sourceProjection,
     destinationProjection
   );
-  return transformFunc(point);
+  return <Coordinate>transformFunc(point);
 }
 
 /**
  * @type {Projection|null}
  */
-let userProjection = null;
+let userProjection: Projection = null;
 
 /**
  * Set the projection for coordinates supplied from and returned by API methods.
@@ -558,7 +558,7 @@ let userProjection = null;
  * @param {ProjectionLike} projection The user projection.
  * @api
  */
-export function setUserProjection(projection) {
+export function setUserProjection(projection: ProjectionLike): void {
   userProjection = get(projection);
 }
 
@@ -566,7 +566,7 @@ export function setUserProjection(projection) {
  * Clear the user projection if set.
  * @api
  */
-export function clearUserProjection() {
+export function clearUserProjection(): void {
   userProjection = null;
 }
 
@@ -575,7 +575,7 @@ export function clearUserProjection() {
  * @return {Projection|null} The user projection (or null if not set).
  * @api
  */
-export function getUserProjection() {
+export function getUserProjection(): Projection {
   return userProjection;
 }
 
@@ -585,7 +585,7 @@ export function getUserProjection() {
  * plus {@link import("./Map").FrameState} and {@link import("./View").State}.
  * @api
  */
-export function useGeographic() {
+export function useGeographic(): void {
   setUserProjection('EPSG:4326');
 }
 
@@ -596,7 +596,7 @@ export function useGeographic() {
  * @param {ProjectionLike} sourceProjection The input coordinate projection.
  * @return {Array<number>} The input coordinate in the user projection.
  */
-export function toUserCoordinate(coordinate, sourceProjection) {
+export function toUserCoordinate(coordinate: Coordinate, sourceProjection: ProjectionLike): Coordinate {
   if (!userProjection) {
     return coordinate;
   }

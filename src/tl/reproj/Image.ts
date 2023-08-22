@@ -26,12 +26,12 @@ import Projection from "../proj/Projection";
  * @typedef {function(import("../extent").Extent, number, number) : import("../ImageBase").default} FunctionType
  */
 
-export type ImageFunctionType = (extent: Extent, a: number, b: number) => ImageBase;
+export type ImageFunctionType = (extent: Extent, resolution: number, pixelRatio: number) => ImageBase;
 
 /**
  * @classdesc
  * Class encapsulating single reprojected image.
- * See {@link module:tl/source/Image~ImageSource}.
+ * See {module:tl/source/Image~ImageSource}.
  */
 class ReprojImage extends ImageBase {
   /**
@@ -67,13 +67,13 @@ class ReprojImage extends ImageBase {
   ) {
     let maxSourceExtent = sourceProj.getExtent();
     if (maxSourceExtent && sourceProj.canWrapX()) {
-      maxSourceExtent = maxSourceExtent.slice();
+      maxSourceExtent = <Extent>maxSourceExtent.slice();
       maxSourceExtent[0] = -Infinity;
       maxSourceExtent[2] = Infinity;
     }
     let maxTargetExtent = targetProj.getExtent();
     if (maxTargetExtent && targetProj.canWrapX()) {
-      maxTargetExtent = maxTargetExtent.slice();
+      maxTargetExtent = <Extent>maxTargetExtent.slice();
       maxTargetExtent[0] = -Infinity;
       maxTargetExtent[2] = Infinity;
     }
@@ -175,7 +175,7 @@ class ReprojImage extends ImageBase {
   /**
    * Clean up.
    */
-  public disposeInternal(): void {
+  protected disposeInternal(): void {
     if (this.state == ImageState.LOADING) {
       this.unlistenSource_();
     }

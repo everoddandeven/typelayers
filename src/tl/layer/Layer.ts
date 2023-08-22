@@ -484,7 +484,7 @@ class Layer<SourceType extends Source, RenderType extends LayerRenderer<any>> ex
   /**
    * Clean up.
    */
-  public disposeInternal() {
+  protected disposeInternal() {
     if (this.renderer_) {
       (this.renderer_).dispose();
       delete this.renderer_;

@@ -214,7 +214,7 @@ class WebGLLayerRenderer<LayerType extends Layer<any, any>> extends LayerRendere
   /**
    * Clean up.
    */
-  public disposeInternal(): void {
+  protected disposeInternal(): void {
     this.removeHelper();
     super.disposeInternal();
   }

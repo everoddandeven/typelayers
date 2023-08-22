@@ -413,7 +413,7 @@ export default abstract class BaseLayer extends BaseObject {
   /**
    * Clean up.
    */
-  public disposeInternal() {
+  protected disposeInternal() {
     if (this.state_) {
       this.state_.layer = null;
       this.state_ = null;

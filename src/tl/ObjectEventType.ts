@@ -16,4 +16,4 @@ export enum ObjectEventType {
 
 export default ObjectEventType;
 
-export type Types = 'propertychange';
+export type ObjectEventTypes = 'propertychange';

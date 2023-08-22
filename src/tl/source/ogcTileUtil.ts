@@ -5,68 +5,62 @@
 import TileGrid from '../tilegrid/TileGrid';
 import {getJSON, resolveUrl} from '../net';
 import {get as getProjection} from '../proj';
-import {getIntersection as intersectExtents} from '../extent';
+import {Extent, getIntersection as intersectExtents} from '../extent';
+import {UrlFunction} from "../Tile";
+import Projection from "../proj/Projection";
+import {TileCoord} from "../tilecoord";
 
 /**
  * See https://ogcapi.ogc.org/tiles/.
  */
 
-/**
- * @typedef {'map' | 'vector'} TileType
- */
+type TileType = 'map' | 'vector';
 
-/**
- * @typedef {'topLeft' | 'bottomLeft'} CornerOfOrigin
- */
+type CornerOfOrigin = 'topLeft' | 'bottomLeft';
 
-/**
- * @typedef {Object} TileSet
- * @property {TileType} dataType Type of data represented in the tileset.
- * @property {string} [tileMatrixSetDefinition] Reference to a tile matrix set definition.
- * @property {TileMatrixSet} [tileMatrixSet] Tile matrix set definition.
- * @property {Array<TileMatrixSetLimit>} [tileMatrixSetLimits] Tile matrix set limits.
- * @property {Array<Link>} links Tileset links.
- */
+interface TileSet {
+  dataType: TileType;
+  tileMatrixSetDefinition?: string;
+  tileMatrixSet?: TileMatrixSet;
+  tileMatrixSetLimits?: TileMatrixSetLimit[];
+  links: Link[];
+}
 
-/**
- * @typedef {Object} Link
- * @property {string} rel The link rel attribute.
- * @property {string} href The link URL.
- * @property {string} type The link type.
- */
+interface Link {
+  rel: string;
+  href: string;
+  type: string;
+}
 
-/**
- * @typedef {Object} TileMatrixSetLimit
- * @property {string} tileMatrix The tile matrix id.
- * @property {number} minTileRow The minimum tile row.
- * @property {number} maxTileRow The maximum tile row.
- * @property {number} minTileCol The minimum tile column.
- * @property {number} maxTileCol The maximum tile column.
- */
+interface TileMatrixSetLimit {
+  tileMatrix: string;
+  minTileRow: number;
+  maxTileRow: number;
+  minTileCol: number;
+  maxTileCol: number;
+}
 
-/**
- * @typedef {Object} TileMatrixSet
- * @property {string} id The tile matrix set identifier.
- * @property {string} crs The coordinate reference system.
- * @property {Array<TileMatrix>} tileMatrices Array of tile matrices.
- */
+interface TileMatrixSet {
+  id: string;
+  crs: string;
+  tileMatrices: TileMatrix[];
+}
 
-/**
- * @typedef {Object} TileMatrix
- * @property {string} id The tile matrix identifier.
- * @property {number} cellSize The pixel resolution (map units per pixel).
- * @property {Array<number>} pointOfOrigin The map location of the matrix origin.
- * @property {CornerOfOrigin} [cornerOfOrigin='topLeft'] The corner of the matrix that represents the origin ('topLeft' or 'bottomLeft').
- * @property {number} matrixWidth The number of columns.
- * @property {number} matrixHeight The number of rows.
- * @property {number} tileWidth The pixel width of a tile.
- * @property {number} tileHeight The pixel height of a tile.
- */
+interface TileMatrix {
+  id: string;
+  cellSize: number;
+  pointOfOrigin: number[];
+  cornerOfOrigin?: CornerOfOrigin;
+  matrixWidth: number;
+  matrixHeight: number;
+  tileWidth: number;
+  tileHeight: number;
+}
 
 /**
  * @type {Object<string, boolean>}
  */
-const knownMapMediaTypes = {
+const knownMapMediaTypes: {[key: string]: boolean} = {
   'image/png': true,
   'image/jpeg': true,
   'image/gif': true,
@@ -76,35 +70,33 @@ const knownMapMediaTypes = {
 /**
  * @type {Object<string, boolean>}
  */
-const knownVectorMediaTypes = {
+const knownVectorMediaTypes: {[key: string]: boolean} = {
   'application/vnd.mapbox-vector-tile': true,
   'application/geo+json': true,
 };
 
-/**
- * @typedef {Object} TileSetInfo
- * @property {string} urlTemplate The tile URL template.
- * @property {import("../tilegrid/TileGrid").default} grid The tile grid.
- * @property {import("../Tile").UrlFunction} urlFunction The tile URL function.
- */
+export interface TileSetInfo {
+  urlTemplate: string;
+  grid: TileGrid
+  urlFunction: UrlFunction;
+}
 
-/**
- * @typedef {Object} SourceInfo
- * @property {string} url The tile set URL.
- * @property {string} mediaType The preferred tile media type.
- * @property {Array<string>} [supportedMediaTypes] The supported media types.
- * @property {import("../proj/Projection").default} projection The source projection.
- * @property {Object} [context] Optional context for constructing the URL.
- */
+export interface SourceInfo {
+  url: string;
+  mediaType: string;
+  supportedMediaTypes?: string[];
+  projection: Projection
+  context?: Object;
+}
 
 /**
  * @param {Array<Link>} links Tileset links.
  * @param {string} [mediaType] The preferred media type.
  * @return {string} The tile URL template.
  */
-export function getMapTileUrlTemplate(links, mediaType) {
-  let tileUrlTemplate;
-  let fallbackUrlTemplate;
+export function getMapTileUrlTemplate(links: Link[], mediaType?: string): string {
+  let tileUrlTemplate: string;
+  let fallbackUrlTemplate: string;
   for (let i = 0; i < links.length; ++i) {
     const link = links[i];
     if (link.rel === 'item') {
@@ -138,18 +130,18 @@ export function getMapTileUrlTemplate(links, mediaType) {
  * @return {string} The tile URL template.
  */
 export function getVectorTileUrlTemplate(
-  links,
-  mediaType,
-  supportedMediaTypes
-) {
-  let tileUrlTemplate;
-  let fallbackUrlTemplate;
+  links: Link[],
+  mediaType?: string,
+  supportedMediaTypes?: string[]
+): string {
+  let tileUrlTemplate: string;
+  let fallbackUrlTemplate: string;
 
   /**
    * Lookup of URL by media type.
    * @type {Object<string, string>}
    */
-  const hrefLookup = {};
+  const hrefLookup: {[key: string]: string} = {};
 
   for (let i = 0; i < links.length; ++i) {
     const link = links[i];
@@ -194,11 +186,11 @@ export function getVectorTileUrlTemplate(
  * @return {TileSetInfo} Tile set info.
  */
 function parseTileMatrixSet(
-  sourceInfo,
-  tileMatrixSet,
-  tileUrlTemplate,
-  tileMatrixSetLimits
-) {
+  sourceInfo: SourceInfo,
+  tileMatrixSet: TileMatrixSet,
+  tileUrlTemplate: string,
+  tileMatrixSetLimits?: TileMatrixSetLimit[]
+): TileSetInfo {
   let projection = sourceInfo.projection;
   if (!projection) {
     projection = getProjection(tileMatrixSet.crs);
@@ -213,7 +205,7 @@ function parseTileMatrixSet(
   /**
    * @type {Object<string, TileMatrix>}
    */
-  const matrixLookup = {};
+  const matrixLookup: {[key: string]: TileMatrix} = {};
   for (let i = 0; i < matrices.length; ++i) {
     const matrix = matrices[i];
     matrixLookup[matrix.id] = matrix;
@@ -222,12 +214,12 @@ function parseTileMatrixSet(
   /**
    * @type {Object<string, TileMatrixSetLimit>}
    */
-  const limitLookup = {};
+  const limitLookup: {[key: string]: TileMatrixSetLimit} = {};
 
   /**
    * @type {Array<string>}
    */
-  const matrixIds = [];
+  const matrixIds: string[] = [];
 
   if (tileMatrixSetLimits) {
     for (let i = 0; i < tileMatrixSetLimits.length; ++i) {
@@ -248,7 +240,7 @@ function parseTileMatrixSet(
   const resolutions = new Array(length);
   const sizes = new Array(length);
   const tileSizes = new Array(length);
-  const extent = [-Infinity, -Infinity, Infinity, Infinity];
+  const extent: Extent = [-Infinity, -Infinity, Infinity, Infinity];
 
   for (let i = 0; i < length; ++i) {
     const id = matrixIds[i];
@@ -271,8 +263,8 @@ function parseTileMatrixSet(
       const tileMapHeight = matrix.cellSize * matrix.tileHeight;
       const upsideDown = matrix.cornerOfOrigin === 'bottomLeft';
 
-      let minY;
-      let maxY;
+      let minY: number;
+      let maxY: number;
       if (upsideDown) {
         minY = origins[i][1] + limit.minTileRow * tileMapHeight;
         maxY = origins[i][1] + (limit.maxTileRow + 1) * tileMapHeight;
@@ -296,7 +288,7 @@ function parseTileMatrixSet(
   const context = sourceInfo.context;
   const base = sourceInfo.url;
 
-  function tileUrlFunction(tileCoord, pixelRatio, projection) {
+  function tileUrlFunction(tileCoord: TileCoord, pixelRatio: number, projection: Projection): string {
     if (!tileCoord) {
       return undefined;
     }
@@ -344,9 +336,9 @@ function parseTileMatrixSet(
  * @param {TileSet} tileSet Tile set.
  * @return {TileSetInfo|Promise<TileSetInfo>} Tile set info.
  */
-function parseTileSetMetadata(sourceInfo, tileSet) {
+function parseTileSetMetadata(sourceInfo: SourceInfo, tileSet: TileSet): TileSetInfo | Promise<TileSetInfo> {
   const tileMatrixSetLimits = tileSet.tileMatrixSetLimits;
-  let tileUrlTemplate;
+  let tileUrlTemplate: string;
 
   if (tileSet.dataType === 'map') {
     tileUrlTemplate = getMapTileUrlTemplate(
@@ -398,7 +390,7 @@ function parseTileSetMetadata(sourceInfo, tileSet) {
  * @param {SourceInfo} sourceInfo Source info.
  * @return {Promise<TileSetInfo>} Tile set info.
  */
-export function getTileSetInfo(sourceInfo) {
+export function getTileSetInfo(sourceInfo: SourceInfo): Promise<TileSetInfo> {
   return getJSON(sourceInfo.url).then(function (tileSet) {
     return parseTileSetMetadata(sourceInfo, tileSet);
   });

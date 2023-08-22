@@ -214,7 +214,7 @@ abstract class LayerRenderer<LayerType extends Layer<any, any>> extends Observab
   /**
    * Clean up.
    */
-  public disposeInternal(): void {
+  protected disposeInternal(): void {
     delete this.layer_;
     super.disposeInternal();
   }

@@ -7,6 +7,7 @@ import TileState from './TileState';
 import {abstract} from './util';
 import {easeIn} from './easing';
 import {TileCoord} from "./tilecoord";
+import Projection from "./proj/Projection";
 
 /**
  * A function that takes an {@link module:tl/Tile~Tile} for the tile and a
@@ -62,7 +63,7 @@ export type TileLoadFunction = (tile: Tile, src: string) => void;
  * @api
  */
 
-export type UrlFunction = (coord: TileCoord, pixelRatio: number, url: string) => string | undefined;
+export type UrlFunction = (coord: TileCoord, pixelRatio: number, projection: Projection) => string | undefined;
 
 interface TileOptions {
   transition?: number;
