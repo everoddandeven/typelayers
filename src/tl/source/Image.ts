@@ -155,7 +155,7 @@ export default abstract class ImageSource extends Source {
   /**
    * @return {Array<number>|null} Resolutions.
    */
-  public getResolutions(): number[] | null {
+  public getResolutions(projection?: Projection): number[] | null {
     return this.resolutions_;
   }
 

@@ -16,6 +16,7 @@ import {
   setFromArray as setFromTransform,
 } from '../../transform';
 import {getIntersection} from '../../extent';
+import {FrameState} from "../../Map";
 
 /**
  * @typedef {import('../../render/webgl/VectorStyleRenderer').VectorStyle} VectorStyle
@@ -188,12 +189,12 @@ class WebGLVectorTileLayerRenderer extends WebGLBaseTileLayerRenderer {
    * Render declutter items for this layer
    * @param {import("../../Map").FrameState} frameState Frame state.
    */
-  renderDeclutter(frameState) {}
+  public renderDeclutter(frameState: FrameState): void {}
 
   /**
    * Clean up.
    */
-  disposeInternal() {
+  protected disposeInternal() {
     super.disposeInternal();
   }
 }

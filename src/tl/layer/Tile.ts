@@ -3,6 +3,7 @@
  */
 import BaseTileLayer from './BaseTile';
 import CanvasTileLayerRenderer from '../renderer/canvas/TileLayer';
+import TileSource from "../source/Tile";
 
 /**
  * @classdesc
@@ -16,7 +17,7 @@ import CanvasTileLayerRenderer from '../renderer/canvas/TileLayer';
  * @extends BaseTileLayer<TileSourceType, CanvasTileLayerRenderer>
  * @api
  */
-class TileLayer extends BaseTileLayer {
+class TileLayer<TileSourceType extends TileSource> extends BaseTileLayer {
   /**
    * @param {import("./BaseTile").Options<TileSourceType>} [options] Tile layer options.
    */

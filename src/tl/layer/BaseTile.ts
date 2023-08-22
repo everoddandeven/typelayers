@@ -13,6 +13,7 @@ import TileSource from "../source/Tile";
 import {EventsKey} from "../events";
 import {Pixel} from "../pixel";
 import {Extent} from "../extent/Extent";
+import LayerRenderer from "../renderer/Layer";
 
 export type BaseTileLayerOnSignature<Return> =
     OnSignature<EventTypes, BaseEvent, Return> &
@@ -20,7 +21,7 @@ export type BaseTileLayerOnSignature<Return> =
     OnSignature<LayerRenderEventTypes, RenderEvent, Return> &
     CombinedOnSignature<EventTypes | BaseLayerObjectEventTypes | LayerEventType | 'change:preload' | 'change:useInterimTilesOnError' | LayerRenderEventTypes, Return>;
 
-interface BaseTileLayerOptions<TileSourceType = TileSource> {
+interface BaseTileLayerOptions<TileSourceType extends TileSource = TileSource> {
   className?: string;
   opacity?: number;
   visible?: boolean;
@@ -50,7 +51,7 @@ interface BaseTileLayerOptions<TileSourceType = TileSource> {
  * @extends {Layer<TileSourceType, RendererType>}
  * @api
  */
-class BaseTileLayer extends Layer {
+class BaseTileLayer<TileSourceType extends TileSource = TileSource, RendererType extends LayerRenderer = LayerRenderer> extends Layer<TileSourceType, RendererType> {
   /**
    * @param {Options<TileSourceType>} [options] Tile layer options.
    */
@@ -59,7 +60,7 @@ class BaseTileLayer extends Layer {
   public once: BaseTileLayerOnSignature<EventsKey>;
   public un: BaseTileLayerOnSignature<void>;
 
-  constructor(options?: BaseTileLayerOptions) {
+  constructor(options?: BaseTileLayerOptions<TileSourceType>) {
     options = options ? options : {};
 
     const baseOptions = Object.assign({}, options);

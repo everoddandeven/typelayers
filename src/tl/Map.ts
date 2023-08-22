@@ -16,7 +16,7 @@ import MapEventType from './MapEventType';
 import MapProperty from './MapProperty';
 import ObjectEventType from './ObjectEventType';
 import PointerEventType from './pointer/EventType';
-import RenderEventType from './render/EventType';
+import EventType from './render/EventType';
 import TileQueue, {getTilePriority} from './TileQueue';
 import View, {ViewState} from './View';
 import ViewHint from './ViewHint';
@@ -1203,9 +1203,9 @@ class Map extends BaseObject {
 
     if (frameState && this.renderer_ && !frameState.animate) {
       if (this.renderComplete_ === true) {
-        if (this.hasListener(RenderEventType.RENDERCOMPLETE)) {
+        if (this.hasListener(EventType.RENDERCOMPLETE)) {
           this.renderer_.dispatchRenderEvent(
-            RenderEventType.RENDERCOMPLETE,
+            EventType.RENDERCOMPLETE,
             frameState
           );
         }
@@ -1619,7 +1619,7 @@ class Map extends BaseObject {
     this.renderComplete_ =
       this.hasListener(MapEventType.LOADSTART) ||
       this.hasListener(MapEventType.LOADEND) ||
-      this.hasListener(RenderEventType.RENDERCOMPLETE)
+      this.hasListener(EventType.RENDERCOMPLETE)
         ? !this.tileQueue_.getTilesLoading() &&
           !this.tileQueue_.getCount() &&
           !this.getLoadingOrNotReady()

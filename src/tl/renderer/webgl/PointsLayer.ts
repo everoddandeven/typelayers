@@ -111,7 +111,7 @@ interface Options {
  *
  * @api
  */
-class WebGLPointsLayerRenderer<LayerType> extends WebGLLayerRenderer<LayerType> {
+class WebGLPointsLayerRenderer extends WebGLLayerRenderer {
   /**
    * @param {import("../../layer/Layer").default} layer Layer.
    * @param {Options} options Options.

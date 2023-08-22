@@ -6,17 +6,27 @@ import Event from '../events/Event';
 import EventType from '../events/EventType';
 import ImageCanvas from '../ImageCanvas';
 import ImageLayer from '../layer/Image';
-import ImageSource from './Image';
+import ImageSource, {ImageSourceEvent, ImageSourceEventTypes} from './Image';
 import Source from './Source';
 import TileLayer from '../layer/Tile';
 import TileQueue from '../TileQueue';
 import TileSource from './Tile';
 import {createCanvasContext2D} from '../dom';
 import {create as createTransform} from '../transform';
-import {equals, getCenter, getHeight, getWidth} from '../extent';
+import {equals, Extent, getCenter, getHeight, getWidth} from '../extent';
 import {getUid} from '../util';
+import {FrameState} from "../Map";
+import Layer, {LayerState} from "../layer/Layer";
+import BaseEvent from "../events/Event";
+import {CombinedOnSignature, EventTypes, OnSignature} from "../Observable";
+import {ObjectEventTypes} from "../ObjectEventType";
+import {ObjectEvent} from "../Object";
+import ImageBase from '../ImageBase';
+import { ProjectionLike } from '../proj';
+import {ViewState} from "../View";
+import Projection from "../proj/Projection";
 
-let hasImageData = true;
+let hasImageData: boolean = true;
 try {
   new ImageData(10, 10);
 } catch (_) {
@@ -24,7 +34,7 @@ try {
 }
 
 /** @type {CanvasRenderingContext2D} */
-let context;
+let context: CanvasRenderingContext2D;
 
 /**
  * @param {Uint8ClampedArray} data Image data.
@@ -32,7 +42,7 @@ let context;
  * @param {number} height Number of rows.
  * @return {ImageData} Image data.
  */
-export function newImageData(data, width, height) {
+export function newImageData(data: Uint8ClampedArray, width: number, height: number): ImageData {
   if (hasImageData) {
     return new ImageData(data, width, height);
   }
@@ -45,14 +55,13 @@ export function newImageData(data, width, height) {
   return imageData;
 }
 
-/**
- * @typedef {Object} MinionData
- * @property {Array<ArrayBuffer>} buffers Array of buffers.
- * @property {Object} meta Operation metadata.
- * @property {boolean} imageOps The operation is an image operation.
- * @property {number} width The width of the image.
- * @property {number} height The height of the image.
- */
+export interface MinionData {
+  buffers: ArrayBuffer[];
+  meta: {[key: string]: any};
+  imageOps: boolean;
+  width: number;
+  height: number;
+}
 
 /* istanbul ignore next */
 /**
@@ -63,7 +72,7 @@ export function newImageData(data, width, height) {
  * buffers, meta, imageOps, width, and height properties and returns an array
  * buffer.
  */
-function createMinion(operation) {
+function createMinion(operation: (images: any[], meta: any) => any): (data: MinionData) => ArrayBuffer {
   let workerHasImageData = true;
   try {
     new ImageData(10, 10);
@@ -93,9 +102,9 @@ function createMinion(operation) {
       const images = new Array(numBuffers);
       for (let b = 0; b < numBuffers; ++b) {
         images[b] = newWorkerImageData(
-          new Uint8ClampedArray(buffers[b]),
-          width,
-          height
+            new Uint8ClampedArray(buffers[b]),
+            width,
+            height
         );
       }
       const output = operation(images, meta).data;
@@ -133,7 +142,7 @@ function createMinion(operation) {
  * @param {function(MessageEvent): void} onMessage Called with a message event.
  * @return {Worker} The worker.
  */
-function createWorker(config, onMessage) {
+function createWorker(config: ProcessorOptions, onMessage: (event: MessageEvent) => void): Worker {
   const lib = Object.keys(config.lib || {}).map(function (name) {
     return 'const ' + name + ' = ' + config.lib[name].toString() + ';';
   });
@@ -149,19 +158,18 @@ function createWorker(config, onMessage) {
   ]);
 
   const worker = new Worker(
-    typeof Blob === 'undefined'
-      ? 'data:text/javascript;base64,' +
-        Buffer.from(lines.join('\n'), 'binary').toString('base64')
-      : URL.createObjectURL(new Blob(lines, {type: 'text/javascript'}))
+      typeof Blob === 'undefined'
+          ? 'data:text/javascript;base64,' +
+          Buffer.from(lines.join('\n'), 'binary').toString('base64')
+          : URL.createObjectURL(new Blob(lines, {type: 'text/javascript'}))
   );
   worker.addEventListener('message', onMessage);
   return worker;
 }
 
-/**
- * @typedef {Object} FauxMessageEvent
- * @property {Object} data Message data.
- */
+export interface FauxMessageEvent {
+  data: {[key: string]: any};
+}
 
 /**
  * Create a faux worker for running operations.
@@ -169,10 +177,10 @@ function createWorker(config, onMessage) {
  * @param {function(FauxMessageEvent): void} onMessage Called with a message event.
  * @return {Object} The faux worker.
  */
-function createFauxWorker(config, onMessage) {
+function createFauxWorker(config: ProcessorOptions, onMessage: (event: FauxMessageEvent) => void): Worker {
   const minion = createMinion(config.operation);
   let terminated = false;
-  return {
+  return <Worker>{
     postMessage: function (data) {
       setTimeout(function () {
         if (terminated) {
@@ -191,21 +199,21 @@ function createFauxWorker(config, onMessage) {
  * @typedef {function(Error, ImageData, (Object|Array<Object>)): void} JobCallback
  */
 
-/**
- * @typedef {Object} Job
- * @property {Object} meta Job metadata.
- * @property {Array<ImageData>} inputs Array of input data.
- * @property {JobCallback} callback Called when the job is complete.
- */
+export type JobCallback = (error: Error, imageData: ImageData, meta: {[key: string]: any} | Object[]) => void;
 
-/**
- * @typedef {Object} ProcessorOptions
- * @property {number} threads Number of workers to spawn.
- * @property {Operation} operation The operation.
- * @property {Object<string, Function>} [lib] Functions that will be made available to operations run in a worker.
- * @property {number} queue The number of queued jobs to allow.
- * @property {boolean} [imageOps=false] Pass all the image data to the operation instead of a single pixel.
- */
+export interface Job {
+  meta: {[key: string]: any};
+  inputs: ImageData[];
+  callback: JobCallback;
+}
+
+interface ProcessorOptions {
+  threads: number;
+  operation: Operation;
+  lib?: { [key: string]: Function };
+  queue: number;
+  imageOps?: boolean;
+}
 
 /**
  * @classdesc
@@ -215,11 +223,20 @@ export class Processor extends Disposable {
   /**
    * @param {ProcessorOptions} config Configuration.
    */
-  constructor(config) {
+
+  private _imageOps: boolean;
+  private _workers: Worker[];
+  private _queue: Job[];
+  private _running: number;
+  private _dataLookup: { [key: number]: any };
+  private _job: Job;
+
+  constructor(config: ProcessorOptions) {
     super();
 
     this._imageOps = !!config.imageOps;
-    let threads;
+    let threads: number;
+
     if (config.threads === 0) {
       threads = 0;
     } else if (this._imageOps) {
@@ -231,15 +248,15 @@ export class Processor extends Disposable {
     /**
      * @type {Array<Worker>}
      */
-    const workers = new Array(threads);
+    const workers: Worker[] = new Array(threads);
     if (threads) {
       for (let i = 0; i < threads; ++i) {
         workers[i] = createWorker(config, this._onWorkerMessage.bind(this, i));
       }
     } else {
       workers[0] = createFauxWorker(
-        config,
-        this._onWorkerMessage.bind(this, 0)
+          config,
+          this._onWorkerMessage.bind(this, 0)
       );
     }
     this._workers = workers;
@@ -266,6 +283,9 @@ export class Processor extends Disposable {
     this._job = null;
   }
 
+  private _maxQueueLength: number;
+
+
   /**
    * Run operation on input data.
    * @param {Array<ImageData>} inputs Array of image data.
@@ -275,7 +295,7 @@ export class Processor extends Disposable {
    *     completes.  The first argument is any error.  The second is the ImageData
    *     generated by operations.  The third is the user data object.
    */
-  process(inputs, meta, callback) {
+  public process(inputs: ImageData[], meta: {[key: string]: any}, callback: JobCallback) {
     this._enqueue({
       inputs: inputs,
       meta: meta,
@@ -288,17 +308,17 @@ export class Processor extends Disposable {
    * Add a job to the queue.
    * @param {Job} job The job.
    */
-  _enqueue(job) {
+  private _enqueue(job: Job): void {
     this._queue.push(job);
     while (this._queue.length > this._maxQueueLength) {
-      this._queue.shift().callback(null, null);
+      this._queue.shift().callback(null, null, null);
     }
   }
 
   /**
    * Dispatch a job.
    */
-  _dispatch() {
+  private _dispatch(): void {
     if (this._running || this._queue.length === 0) {
       return;
     }
@@ -314,14 +334,14 @@ export class Processor extends Disposable {
     this._running = threads;
     if (threads === 1) {
       this._workers[0].postMessage(
-        {
-          buffers: buffers,
-          meta: job.meta,
-          imageOps: this._imageOps,
-          width: width,
-          height: height,
-        },
-        buffers
+          {
+            buffers: buffers,
+            meta: job.meta,
+            imageOps: this._imageOps,
+            width: width,
+            height: height,
+          },
+          buffers
       );
       return;
     }
@@ -335,14 +355,14 @@ export class Processor extends Disposable {
         slices.push(buffers[j].slice(offset, offset + segmentLength));
       }
       this._workers[i].postMessage(
-        {
-          buffers: slices,
-          meta: job.meta,
-          imageOps: this._imageOps,
-          width: width,
-          height: height,
-        },
-        slices
+          {
+            buffers: slices,
+            meta: job.meta,
+            imageOps: this._imageOps,
+            width: width,
+            height: height,
+          },
+          slices
       );
     }
   }
@@ -352,7 +372,7 @@ export class Processor extends Disposable {
    * @param {number} index The worker index.
    * @param {MessageEvent} event The message event.
    */
-  _onWorkerMessage(index, event) {
+  private _onWorkerMessage(index: number, event: MessageEvent): void {
     if (this.disposed) {
       return;
     }
@@ -367,7 +387,7 @@ export class Processor extends Disposable {
    * Resolve a job.  If there are no more worker threads, the processor callback
    * will be called.
    */
-  _resolveJob() {
+  private _resolveJob(): void {
     const job = this._job;
     const threads = this._workers.length;
     let data, meta;
@@ -389,9 +409,9 @@ export class Processor extends Disposable {
     this._job = null;
     this._dataLookup = {};
     job.callback(
-      null,
-      newImageData(data, job.inputs[0].width, job.inputs[0].height),
-      meta
+        null,
+        newImageData(data, job.inputs[0].width, job.inputs[0].height),
+        meta
     );
     this._dispatch();
   }
@@ -399,7 +419,7 @@ export class Processor extends Disposable {
   /**
    * Terminate all workers associated with the processor.
    */
-  disposeInternal() {
+  protected disposeInternal(): void {
     for (let i = 0; i < this._workers.length; ++i) {
       this._workers[i].terminate();
     }
@@ -426,17 +446,19 @@ export class Processor extends Disposable {
  *     (Array<number>|ImageData)} Operation
  */
 
+export type Operation = (pixels: number[][] | ImageData[], data: {[key: string]: any}) => number[] | ImageData;
+
 /**
  * @enum {string}
  */
-const RasterEventType = {
+export enum RasterEventType {
   /**
    * Triggered before operations are run.  Listeners will receive an event object with
    * a `data` property that can be used to make data available to operations.
    * @event module:tl/source/Raster.RasterSourceEvent#beforeoperations
    * @api
    */
-  BEFOREOPERATIONS: 'beforeoperations',
+  BEFOREOPERATIONS = 'beforeoperations',
 
   /**
    * Triggered after operations are run.  Listeners will receive an event object with
@@ -445,17 +467,12 @@ const RasterEventType = {
    * @event module:tl/source/Raster.RasterSourceEvent#afteroperations
    * @api
    */
-  AFTEROPERATIONS: 'afteroperations',
-};
+  AFTEROPERATIONS = 'afteroperations',
+}
 
-/**
- * @typedef {'pixel' | 'image'} RasterOperationType
- * Raster operation type. Supported values are `'pixel'` and `'image'`.
- */
+export type RasterOperationType = 'pixel' | 'image';
 
-/**
- * @typedef {import("./Image").ImageSourceEventTypes|'beforeoperations'|'afteroperations'} RasterSourceEventTypes
- */
+export type RasterSourceEventTypes = ImageSourceEventTypes | 'beforeoperations' | 'afteroperations';
 
 /**
  * @classdesc
@@ -469,7 +486,12 @@ export class RasterSourceEvent extends Event {
    * @param {Object|Array<Object>} data An object made available to operations.  For "afteroperations" evenets
    * this will be an array of objects if more than one thread is used.
    */
-  constructor(type, frameState, data) {
+
+  public extent: Extent;
+  public resolution: number;
+  public data: {[key: string]: any};
+
+  constructor(type: string, frameState: FrameState, data: {[key: string]: any} | Object[]) {
     super(type);
 
     /**
@@ -496,38 +518,21 @@ export class RasterSourceEvent extends Event {
   }
 }
 
-/**
- * @typedef {Object} Options
- * @property {Array<import("./Source").default|import("../layer/Layer").default>} sources Input
- * sources or layers.  For vector data, use an VectorImage layer.
- * @property {Operation} [operation] Raster operation.
- * The operation will be called with data from input sources
- * and the output will be assigned to the raster source.
- * @property {Object} [lib] Functions that will be made available to operations run in a worker.
- * @property {number} [threads] By default, operations will be run in a single worker thread.
- * To avoid using workers altogether, set `threads: 0`.  For pixel operations, operations can
- * be run in multiple worker threads.  Note that there is additional overhead in
- * transferring data to multiple workers, and that depending on the user's
- * system, it may not be possible to parallelize the work.
- * @property {RasterOperationType} [operationType='pixel'] Operation type.
- * Supported values are `'pixel'` and `'image'`.  By default,
- * `'pixel'` operations are assumed, and operations will be called with an
- * array of pixels from input sources.  If set to `'image'`, operations will
- * be called with an array of ImageData objects from input sources.
- * @property {Array<number>|null} [resolutions] Resolutions. If specified, raster operations will only
- * be run at the given resolutions.  By default, the resolutions of the first source with resolutions
- * specified will be used, if any. Set to `null` to use any view resolution instead.
- */
+export interface RasterSourceOptions {
+  sources: Source[] | Layer<any, any>[];
+  operation?: Operation;
+  lib?: {[key: string]: any};
+  threads?: number;
+  operationType?: RasterOperationType;
+  resolutions?: Array<number> | null;
+}
 
-/***
- * @template Return
- * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event").default, Return> &
- *   import("../Observable").OnSignature<import("../ObjectEventType").Types, import("../Object").ObjectEvent, Return> &
- *   import("../Observable").OnSignature<import("./Image").ImageSourceEventTypes, import("./Image").ImageSourceEvent, Return> &
- *   import("../Observable").OnSignature<RasterSourceEventTypes, RasterSourceEvent, Return> &
- *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types
- *     |RasterSourceEventTypes, Return>} RasterSourceOnSignature
- */
+export type RasterSourceOnSignature<Return> =
+    OnSignature<EventTypes, BaseEvent, Return> &
+    OnSignature<ObjectEventTypes, ObjectEvent, Return> &
+    OnSignature<ImageSourceEventTypes, ImageSourceEvent, Return> &
+    OnSignature<RasterSourceEventTypes, RasterSourceEvent, Return> &
+    CombinedOnSignature<EventTypes | ObjectEventTypes | RasterSourceEventTypes, Return>;
 
 /**
  * @classdesc
@@ -539,10 +544,23 @@ export class RasterSourceEvent extends Event {
  * @api
  */
 class RasterSource extends ImageSource {
+
   /**
    * @param {Options} options Options.
    */
-  constructor(options) {
+
+  private processor_: Processor;
+  private operationType_: RasterOperationType;
+  private threads_: number;
+  private layers_: Layer<any, any>[];
+  private useResolutions_: boolean;
+  private tileQueue_: TileQueue;
+  private requestedFrameState_: FrameState;
+  private renderedImageCanvas_: ImageCanvas;
+  private renderedRevision_: number;
+  private frameState_: FrameState;
+
+  constructor(options: RasterSourceOptions) {
     super({
       projection: null,
     });
@@ -591,7 +609,7 @@ class RasterSource extends ImageSource {
     for (let i = 0, ii = this.layers_.length; i < ii; ++i) {
       this.layers_[i].addEventListener(EventType.CHANGE, changed);
     }
-
+    
     /** @type {boolean} */
     this.useResolutions_ = options.resolutions !== null;
 
@@ -642,7 +660,7 @@ class RasterSource extends ImageSource {
       tileQueue: this.tileQueue_,
       time: Date.now(),
       usedTiles: {},
-      viewState: /** @type {import("../View").State} */ ({
+      viewState: (<ViewState>{
         rotation: 0,
       }),
       viewHints: [],
@@ -680,6 +698,10 @@ class RasterSource extends ImageSource {
     }
   }
 
+  protected getImageInternal(extent: Extent, resolution: number, pixelRatio: number, projection: ProjectionLike): ImageBase {
+    throw new Error('Method not implemented.');
+  }
+
   /**
    * Set the operation.
    * @param {Operation} operation New operation.
@@ -687,7 +709,7 @@ class RasterSource extends ImageSource {
    *     in a worker.
    * @api
    */
-  setOperation(operation, lib) {
+  public setOperation(operation: Operation, lib: {[key: string]: any}): void {
     if (this.processor_) {
       this.processor_.dispose();
     }
@@ -710,7 +732,7 @@ class RasterSource extends ImageSource {
    * @return {import("../Map").FrameState} The updated frame state.
    * @private
    */
-  updateFrameState_(extent, resolution, projection) {
+  private updateFrameState_(extent: Extent, resolution: number, projection: Projection): FrameState {
     const frameState = /** @type {import("../Map").FrameState} */ (
       Object.assign({}, this.frameState_)
     );
@@ -743,7 +765,7 @@ class RasterSource extends ImageSource {
    * @return {boolean} All sources are ready.
    * @private
    */
-  allSourcesReady_() {
+  private allSourcesReady_(): boolean {
     let ready = true;
     let source;
     for (let i = 0, ii = this.layers_.length; i < ii; ++i) {
@@ -763,7 +785,7 @@ class RasterSource extends ImageSource {
    * @param {import("../proj/Projection").default} projection Projection.
    * @return {import("../ImageCanvas").default} Single image.
    */
-  getImage(extent, resolution, pixelRatio, projection) {
+  public getImage(extent: Extent, resolution: number, pixelRatio: number, projection: Projection): ImageCanvas {
     if (!this.allSourcesReady_()) {
       return null;
     }
@@ -804,7 +826,7 @@ class RasterSource extends ImageSource {
    * Start processing source data.
    * @private
    */
-  processSources_() {
+  private processSources_(): void {
     const frameState = this.requestedFrameState_;
     const len = this.layers_.length;
     const imageDatas = new Array(len);
@@ -838,7 +860,7 @@ class RasterSource extends ImageSource {
    * @param {Object|Array<Object>} data The user data (or an array if more than one thread).
    * @private
    */
-  onWorkerComplete_(frameState, err, output, data) {
+  private onWorkerComplete_(frameState: FrameState, err: Error, output: ImageData, data: {[key: string]: any} | Object[]): void {
     if (err || !output) {
       return;
     }
@@ -885,7 +907,7 @@ class RasterSource extends ImageSource {
    * @param {import("../proj/Projection").default} [projection] Projection.
    * @return {Array<number>|null} Resolutions.
    */
-  getResolutions(projection) {
+  public getResolutions(projection: Projection): number[] | null {
     if (!this.useResolutions_) {
       return null;
     }
@@ -902,7 +924,7 @@ class RasterSource extends ImageSource {
     return resolutions;
   }
 
-  disposeInternal() {
+  protected disposeInternal(): void {
     if (this.processor_) {
       this.processor_.dispose();
     }
@@ -915,14 +937,14 @@ class RasterSource extends ImageSource {
  * @function
  * @api
  */
-RasterSource.prototype.dispose;
+// RasterSource.prototype.dispose;
 
 /**
  * A reusable canvas context.
  * @type {CanvasRenderingContext2D}
  * @private
  */
-let sharedContext = null;
+let sharedContext: CanvasRenderingContext2D = null;
 
 /**
  * Get image data from a layer.
@@ -930,7 +952,7 @@ let sharedContext = null;
  * @param {import("../Map").FrameState} frameState The frame state.
  * @return {ImageData} The image data.
  */
-function getImageData(layer, frameState) {
+function getImageData(layer: Layer<any, any>, frameState: FrameState): ImageData {
   const renderer = layer.getRenderer();
   if (!renderer) {
     throw new Error('Unsupported layer type: ' + layer);
@@ -962,13 +984,13 @@ function getImageData(layer, frameState) {
   }
 
   if (!sharedContext) {
-    sharedContext = createCanvasContext2D(width, height, undefined, {
+    sharedContext = <CanvasRenderingContext2D>createCanvasContext2D(width, height, undefined, {
       willReadFrequently: true,
     });
   } else {
     const canvas = sharedContext.canvas;
     if (canvas.width !== width || canvas.height !== height) {
-      sharedContext = createCanvasContext2D(width, height, undefined, {
+      sharedContext = <CanvasRenderingContext2D>createCanvasContext2D(width, height, undefined, {
         willReadFrequently: true,
       });
     } else {
@@ -984,7 +1006,7 @@ function getImageData(layer, frameState) {
  * @param {Array<import("../layer/Layer").default>} layers Layers.
  * @return {Array<import("../layer/Layer").State>} The layer states.
  */
-function getLayerStatesArray(layers) {
+function getLayerStatesArray(layers: Layer<any, any>[]): LayerState[] {
   return layers.map(function (layer) {
     return layer.getLayerState();
   });
@@ -995,7 +1017,7 @@ function getLayerStatesArray(layers) {
  * @param {Array<import("./Source").default|import("../layer/Layer").default>} sources The sources.
  * @return {Array<import("../layer/Layer").default>} Array of layers.
  */
-function createLayers(sources) {
+function createLayers(sources: Source[] | Layer<any, any>[]): Layer<any, any>[] {
   const len = sources.length;
   const layers = new Array(len);
   for (let i = 0; i < len; ++i) {
@@ -1009,9 +1031,9 @@ function createLayers(sources) {
  * @param {import("./Source").default|import("../layer/Layer").default} layerOrSource The layer or source.
  * @return {import("../layer/Layer").default} The layer.
  */
-function createLayer(layerOrSource) {
+function createLayer(layerOrSource: Source | Layer<any, any>): Layer<any, any> {
   // @type {import("../layer/Layer").default}
-  let layer;
+  let layer: Layer<any,any>;
   if (layerOrSource instanceof Source) {
     if (layerOrSource instanceof TileSource) {
       layer = new TileLayer({source: layerOrSource});

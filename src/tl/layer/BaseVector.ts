@@ -4,7 +4,7 @@
 import Layer from './Layer';
 import RBush from 'rbush';
 import Style, {
-  createDefaultStyle, StyleLike,
+  createDefaultStyle, StyleFunction, StyleLike,
   toFunction as toStyleFunction,
 } from '../style/Style';
 import {FlatStyleLike, toStyle} from '../style/flat';
@@ -12,8 +12,15 @@ import VectorSource from "../source/Vector";
 import {VectorTile} from "../source";
 import {Extent} from "../extent/Extent";
 import {RenderOrderFunction} from "../render";
+import CanvasVectorLayerRenderer from "../renderer/canvas/VectorLayer";
+import CanvasVectorTileLayerRenderer from "../renderer/canvas/VectorTileLayer";
+import CanvasImageLayerRenderer from "../renderer/canvas/ImageLayer";
+import WebGLPointsLayerRenderer from "../renderer/webgl/PointsLayer";
+import {Pixel} from "../pixel";
+import {FeatureLike} from "../Feature";
+import {FrameState} from "../Map";
 
-export interface BaseVectorLayerOptions<VectorSourceType = VectorSource | VectorTile> {
+export interface BaseVectorLayerOptions<VectorSourceType extends VectorSource | VectorTile = VectorSource | VectorTile> {
   className?: string;
   opacity?: number;
   visible?: boolean;
@@ -44,6 +51,8 @@ enum Property {
   RENDER_ORDER = 'renderOrder',
 }
 
+export type BaseVectorRenderer = CanvasVectorLayerRenderer | CanvasVectorTileLayerRenderer | CanvasImageLayerRenderer | WebGLPointsLayerRenderer;
+
 /**
  * @classdesc
  * Vector data that is rendered client-side.
@@ -52,15 +61,27 @@ enum Property {
  * options means that `title` is observable, and has get/set accessors.
  *
  * @template {import("../source/Vector").default|import("../source/VectorTile").default} VectorSourceType
- * @template {import("../renderer/canvas/VectorLayer").default|import("../renderer/canvas/VectorTileLayer").default|import("../renderer/canvas/VectorImageLayer").default|import("../renderer/webgl/PointsLayer").default} RendererType
+ * @template {
+ * import("../renderer/canvas/VectorLayer").default|
+ * import("../renderer/canvas/VectorTileLayer").default|
+ * import("../renderer/canvas/VectorImageLayer").default|
+ * import("../renderer/webgl/PointsLayer").default
+ * } RendererType
  * @extends {Layer<VectorSourceType, RendererType>}
  * @api
  */
-class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType = VectorLayer> extends Layer<VectorSourceType, RendererType> {
+class BaseVectorLayer<VectorSourceType extends VectorSource | VectorTile = VectorSource | VectorTile, RendererType extends BaseVectorRenderer = BaseVectorRenderer > extends Layer<VectorSourceType, RendererType> {
+  private declutter_: boolean;
+  private renderBuffer_: number;
+  private style_: StyleLike;
+  private styleFunction_?: StyleFunction;
+  private updateWhileAnimating_: boolean;
+  private updateWhileInteracting_: boolean;
+  
   /**
    * @param {Options<VectorSourceType>} [options] Options.
    */
-  constructor(options) {
+  constructor(options?: BaseVectorLayerOptions<VectorSourceType>) {
     options = options ? options : {};
 
     const baseOptions = Object.assign({}, options);
@@ -123,7 +144,7 @@ class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType
   /**
    * @return {boolean} Declutter.
    */
-  getDeclutter() {
+  public getDeclutter(): boolean {
     return this.declutter_;
   }
 
@@ -141,14 +162,14 @@ class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType
    * @return {Promise<Array<import("../Feature").FeatureLike>>} Promise that resolves with an array of features.
    * @api
    */
-  getFeatures(pixel) {
+  public getFeatures(pixel: Pixel): Promise<FeatureLike[]> {
     return super.getFeatures(pixel);
   }
 
   /**
    * @return {number|undefined} Render buffer.
    */
-  getRenderBuffer() {
+  public getRenderBuffer(): number {
     return this.renderBuffer_;
   }
 
@@ -156,7 +177,7 @@ class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType
    * @return {function(import("../Feature").default, import("../Feature").default): number|null|undefined} Render
    *     order.
    */
-  getRenderOrder() {
+  public getRenderOrder(): RenderOrderFunction {
     return /** @type {import("../render").OrderFunction|null|undefined} */ (
       this.get(Property.RENDER_ORDER)
     );
@@ -168,7 +189,7 @@ class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType
    * @return {import("../style/Style").StyleLike|null|undefined} Layer style.
    * @api
    */
-  getStyle() {
+  public getStyle(): StyleLike {
     return this.style_;
   }
 
@@ -177,7 +198,7 @@ class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType
    * @return {import("../style/Style").StyleFunction|undefined} Layer style function.
    * @api
    */
-  getStyleFunction() {
+  public getStyleFunction(): StyleFunction {
     return this.styleFunction_;
   }
 
@@ -185,7 +206,7 @@ class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType
    * @return {boolean} Whether the rendered layer should be updated while
    *     animating.
    */
-  getUpdateWhileAnimating() {
+  public getUpdateWhileAnimating(): boolean {
     return this.updateWhileAnimating_;
   }
 
@@ -193,7 +214,7 @@ class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType
    * @return {boolean} Whether the rendered layer should be updated while
    *     interacting.
    */
-  getUpdateWhileInteracting() {
+  public getUpdateWhileInteracting(): boolean {
     return this.updateWhileInteracting_;
   }
 
@@ -201,7 +222,7 @@ class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType
    * Render declutter items for this layer
    * @param {import("../Map").FrameState} frameState Frame state.
    */
-  renderDeclutter(frameState) {
+  public renderDeclutter(frameState: FrameState): void {
     if (!frameState.declutterTree) {
       frameState.declutterTree = new RBush(9);
     }
@@ -212,7 +233,7 @@ class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType
    * @param {import("../render").RenderOrderFunction|null|undefined} renderOrder
    *     Render order.
    */
-  setRenderOrder(renderOrder) {
+  public setRenderOrder(renderOrder: RenderOrderFunction) {
     this.set(Property.RENDER_ORDER, renderOrder);
   }
 
@@ -237,7 +258,7 @@ class BaseVectorLayer<VectorSourceType = VectorSource | VectorTile, RendererType
    * @param {import("../style/Style").StyleLike|import("../style/flat").FlatStyleLike|null} [style] Layer style.
    * @api
    */
-  setStyle(style) {
+  public setStyle(style?: StyleLike | FlatStyleLike): void {
     /**
      * @type {import("../style/Style").StyleLike|null}
      */

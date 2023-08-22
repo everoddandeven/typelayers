@@ -13,13 +13,14 @@ import {FeatureLike} from "../Feature";
 import {SimpleGeometry} from "../geom";
 import Geometry from "../geom/Geometry";
 import {FeatureCallback} from "./vector";
+import RenderEventType from "../render/EventType";
 
-interface HitMatch {
+export interface HitMatch<T> {
   feature: FeatureLike;
   layer: Layer;
   geometry: SimpleGeometry;
   distanceSq: number;
-  callback: FeatureCallback;
+  callback: FeatureCallback<T>;
 }
 
 /**
@@ -47,7 +48,7 @@ abstract class MapRenderer extends Disposable {
    * @param {import("../render/EventType").default} type Event type.
    * @param {import("../Map").FrameState} frameState Frame state.
    */
-  public abstract dispatchRenderEvent(type, frameState: FrameState): void;
+  public abstract dispatchRenderEvent(type: RenderEventType, frameState: FrameState): void;
 
   /**
    * @param {import("../Map").FrameState} frameState FrameState.
@@ -87,17 +88,17 @@ abstract class MapRenderer extends Disposable {
    * @return {T|undefined} Callback result.
    * @template S,T,U
    */
-  public forEachFeatureAtCoordinate(
+  public forEachFeatureAtCoordinate<S, T, U>(
     coordinate: Coordinate,
     frameState: FrameState,
     hitTolerance: number,
     checkWrapped: boolean,
-    callback: FeatureCallback,
-    thisArg: MapRenderer,
-    layerFilter: (layer: Layer) => boolean,
-    thisArg2: MapRenderer
-  ): any {
-    let result;
+    callback: FeatureCallback<T>,
+    thisArg: S,
+    layerFilter: (thisArg: U, layer: Layer) => boolean,
+    thisArg2: U
+  ): T | undefined {
+    let result: T;
     const viewState = frameState.viewState;
 
     /**
@@ -125,7 +126,7 @@ abstract class MapRenderer extends Disposable {
     const numLayers = layerStates.length;
 
     const matches = /** @type {Array<HitMatch<T>>} */ ([]);
-    const tmpCoord = [];
+    const tmpCoord: Coordinate = [NaN, NaN];
     for (let i = 0; i < offsets.length; i++) {
       for (let j = numLayers - 1; j >= 0; --j) {
         const layerState = layerStates[j];
@@ -186,21 +187,21 @@ abstract class MapRenderer extends Disposable {
    * @return {boolean} Is there a feature at the given coordinate?
    * @template U
    */
-  public hasFeatureAtCoordinate(
+  public hasFeatureAtCoordinate<U>(
     coordinate: Coordinate,
     frameState: FrameState,
     hitTolerance: number,
     checkWrapped: boolean,
-    layerFilter,
-    thisArg: MapRenderer
-  ) {
+    layerFilter: (thisArg: U, layer: Layer) => boolean,
+    thisArg: U
+  ): boolean {
     const hasFeature = this.forEachFeatureAtCoordinate(
       coordinate,
       frameState,
       hitTolerance,
       checkWrapped,
       TRUE,
-      this,
+      thisArg,
       layerFilter,
       thisArg
     );
@@ -237,7 +238,7 @@ abstract class MapRenderer extends Disposable {
  * @param {import("../Map").default} map Map.
  * @param {import("../Map").FrameState} frameState Frame state.
  */
-function expireIconCache(map, frameState) {
+function expireIconCache(map: Map, frameState: FrameState): void {
   iconImageCache.expire();
 }
 

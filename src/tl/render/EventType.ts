@@ -5,7 +5,7 @@
 /**
  * @enum {string}
  */
-export enum EventType {
+export enum RenderEventType {
   /**
    * Triggered before a layer is rendered.
    * @event module =tl/render/Event~RenderEvent#prerender
@@ -48,7 +48,7 @@ export enum EventType {
   RENDERCOMPLETE = 'rendercomplete',
 }
 
-export default EventType;
+export default RenderEventType;
 
 export type MapRenderEventTypes = 'postrender' | 'precompose' | 'postcompose' | 'rendercomplete';
 

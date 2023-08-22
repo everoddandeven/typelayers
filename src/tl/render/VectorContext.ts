@@ -9,6 +9,17 @@ import GeometryCollection from "../geom/GeometryCollection";
 import {LineString} from "../geom";
 import RenderFeature from "./Feature";
 import MultiLineString from "../geom/MultiLineString";
+import {DeclutterImageWithText} from "./canvas";
+import Text from "../style/Text";
+import ImageStyle from "../style/Image";
+import Fill from "../style/Fill";
+import Stroke from "../style/Stroke";
+import SimpleGeometry from "../geom/SimpleGeometry";
+import {Style} from "../style";
+import MultiPolygon from "../geom/MultiPolygon";
+import Point from "../geom/Point";
+import Polygon from "../geom/Polygon";
+import MultiPoint from "../geom/MultiPoint";
 
 /**
  * @classdesc
@@ -75,49 +86,49 @@ class VectorContext {
    * @param {import("../geom/MultiPoint").default|import("./Feature").default} multiPointGeometry MultiPoint geometry.
    * @param {import("../Feature").FeatureLike} feature Feature.
    */
-  drawMultiPoint(multiPointGeometry, feature) {}
+  public drawMultiPoint(multiPointGeometry: MultiPoint | RenderFeature, feature: FeatureLike): void {}
 
   /**
    * @param {import("../geom/MultiPolygon").default} multiPolygonGeometry MultiPolygon geometry.
    * @param {import("../Feature").FeatureLike} feature Feature.
    */
-  drawMultiPolygon(multiPolygonGeometry, feature) {}
+  public drawMultiPolygon(multiPolygonGeometry: MultiPolygon, feature: FeatureLike): void {}
 
   /**
    * @param {import("../geom/Point").default|import("./Feature").default} pointGeometry Point geometry.
    * @param {import("../Feature").FeatureLike} feature Feature.
    */
-  drawPoint(pointGeometry, feature) {}
+  drawPoint(pointGeometry: Point | RenderFeature, feature: FeatureLike): void {}
 
   /**
    * @param {import("../geom/Polygon").default|import("./Feature").default} polygonGeometry Polygon geometry.
    * @param {import("../Feature").FeatureLike} feature Feature.
    */
-  drawPolygon(polygonGeometry, feature) {}
+  public drawPolygon(polygonGeometry: Polygon | RenderFeature, feature: FeatureLike) {}
 
   /**
    * @param {import("../geom/SimpleGeometry").default|import("./Feature").default} geometry Geometry.
    * @param {import("../Feature").FeatureLike} feature Feature.
    */
-  drawText(geometry, feature) {}
+  public drawText(geometry: SimpleGeometry | RenderFeature, feature: FeatureLike): void {}
 
   /**
    * @param {import("../style/Fill").default} fillStyle Fill style.
    * @param {import("../style/Stroke").default} strokeStyle Stroke style.
    */
-  setFillStrokeStyle(fillStyle, strokeStyle) {}
+  public setFillStrokeStyle(fillStyle: Fill, strokeStyle: Stroke) {}
 
   /**
    * @param {import("../style/Image").default} imageStyle Image style.
    * @param {import("./canvas").DeclutterImageWithText} [declutterImageWithText] Shared data for combined decluttering with a text style.
    */
-  setImageStyle(imageStyle, declutterImageWithText) {}
+  public setImageStyle(imageStyle: ImageStyle, declutterImageWithText?: DeclutterImageWithText): void {}
 
   /**
    * @param {import("../style/Text").default} textStyle Text style.
    * @param {import("./canvas").DeclutterImageWithText} [declutterImageWithText] Shared data for combined decluttering with an image style.
    */
-  setTextStyle(textStyle, declutterImageWithText) {}
+  public setTextStyle(textStyle: Text, declutterImageWithText?: DeclutterImageWithText): void {}
 }
 
 export default VectorContext;

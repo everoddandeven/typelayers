@@ -7,19 +7,18 @@ import {assert} from '../asserts';
 import {clamp} from '../math';
 import {Extent} from "../extent/Extent";
 import Layer, {LayerState} from "./Layer";
-import Source, {SourceState} from "../source/Source";
-import {Types} from "../ObjectEventType";
+import {SourceState} from "../source/Source";
+import {ObjectEventTypes} from "../ObjectEventType";
 import {CombinedOnSignature, EventTypes, OnSignature} from "../Observable";
 import BaseEvent from "../events/Event";
 import {EventsKey} from "../events";
-import LayerRenderer from "../renderer/Layer";
 
 
 export type BackgroundFunction = (num: number) => string ;
 export type BackgroundColor = string | BackgroundFunction;
 
 export type BaseLayerObjectEventTypes =
-    Types
+    ObjectEventTypes
     | 'change:extent'
     | 'change:maxResolution'
     | 'change:maxZoom'

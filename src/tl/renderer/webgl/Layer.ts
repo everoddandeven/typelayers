@@ -4,7 +4,7 @@
 import LayerProperty from '../../layer/Property';
 import LayerRenderer from '../Layer';
 import RenderEvent from '../../render/Event';
-import RenderEventType from '../../render/EventType';
+import EventType from '../../render/EventType';
 import WebGLHelper, {UniformValue} from '../../webgl/Helper';
 import {
   compose as composeTransform,
@@ -35,7 +35,7 @@ export interface WebGLLayerRendererOptions {
  * @template {import("../../layer/Layer").default} LayerType
  * @extends {LayerRenderer<LayerType>}
  */
-class WebGLLayerRenderer<LayerType extends Layer<any, any>> extends LayerRenderer<LayerType> {
+class WebGLLayerRenderer<LayerType extends Layer = Layer> extends LayerRenderer<LayerType> {
   private inversePixelTransform_: Transform;
   private pixelContext_: CanvasRenderingContext2D;
   private postProcesses_: PostProcessesOptions[];
@@ -95,9 +95,9 @@ class WebGLLayerRenderer<LayerType extends Layer<any, any>> extends LayerRendere
    */
   protected dispatchPreComposeEvent(context: WebGLRenderingContext, frameState: FrameState): void {
     const layer = this.getLayer();
-    if (layer.hasListener(RenderEventType.PRECOMPOSE)) {
+    if (layer.hasListener(EventType.PRECOMPOSE)) {
       const event = new RenderEvent(
-        RenderEventType.PRECOMPOSE,
+        EventType.PRECOMPOSE,
         undefined,
         frameState,
         context
@@ -113,9 +113,9 @@ class WebGLLayerRenderer<LayerType extends Layer<any, any>> extends LayerRendere
    */
   protected dispatchPostComposeEvent(context: WebGLRenderingContext, frameState: FrameState): void {
     const layer = this.getLayer();
-    if (layer.hasListener(RenderEventType.POSTCOMPOSE)) {
+    if (layer.hasListener(EventType.POSTCOMPOSE)) {
       const event = new RenderEvent(
-        RenderEventType.POSTCOMPOSE,
+        EventType.POSTCOMPOSE,
         undefined,
         frameState,
         context
@@ -225,7 +225,7 @@ class WebGLLayerRenderer<LayerType extends Layer<any, any>> extends LayerRendere
    * @param {import("../../Map").FrameState} frameState Frame state.
    * @private
    */
-  private dispatchRenderEvent_(type: RenderEventType, context: WebGLRenderingContext, frameState: FrameState): void {
+  private dispatchRenderEvent_(type: EventType, context: WebGLRenderingContext, frameState: FrameState): void {
     const layer = this.getLayer();
     if (layer.hasListener(type)) {
       composeTransform(
@@ -255,7 +255,7 @@ class WebGLLayerRenderer<LayerType extends Layer<any, any>> extends LayerRendere
    * @protected
    */
   protected preRender(context: WebGLRenderingContext, frameState: FrameState): void {
-    this.dispatchRenderEvent_(RenderEventType.PRERENDER, context, frameState);
+    this.dispatchRenderEvent_(EventType.PRERENDER, context, frameState);
   }
 
   /**
@@ -264,7 +264,7 @@ class WebGLLayerRenderer<LayerType extends Layer<any, any>> extends LayerRendere
    * @protected
    */
   protected postRender(context: WebGLRenderingContext, frameState: FrameState): void {
-    this.dispatchRenderEvent_(RenderEventType.POSTRENDER, context, frameState);
+    this.dispatchRenderEvent_(EventType.POSTRENDER, context, frameState);
   }
 
   public getFeatures(pixel: Pixel): Promise<FeatureLike[]> {

@@ -5,7 +5,7 @@ import Map, {FrameState} from '../Map';
 import MapRenderer from './Map';
 import ObjectEventType from '../ObjectEventType';
 import RenderEvent from '../render/Event';
-import RenderEventType from '../render/EventType';
+import EventType from '../render/EventType';
 import {CLASS_UNSELECTABLE} from '../css';
 import {checkedFonts} from '../render/canvas';
 import {inView} from '../layer/Layer';
@@ -74,7 +74,7 @@ class CompositeMapRenderer extends MapRenderer {
    * @param {import("../render/EventType").default} type Event type.
    * @param {import("../Map").FrameState} frameState Frame state.
    */
-  public dispatchRenderEvent(type: RenderEventType, frameState: FrameState): void {
+  public dispatchRenderEvent(type: EventType, frameState: FrameState): void {
     const map = this.getMap();
     if (map.hasListener(type)) {
       const event = new RenderEvent(type, undefined, frameState);
@@ -102,7 +102,7 @@ class CompositeMapRenderer extends MapRenderer {
     }
 
     this.calculateMatrices2D(frameState);
-    this.dispatchRenderEvent(RenderEventType.PRECOMPOSE, frameState);
+    this.dispatchRenderEvent(EventType.PRECOMPOSE, frameState);
 
     const layerStatesArray = frameState.layerStatesArray.sort(function (a, b) {
       return a.zIndex - b.zIndex;
@@ -134,12 +134,12 @@ class CompositeMapRenderer extends MapRenderer {
         continue;
       }
       if (element !== previousElement) {
-        this.children_.push(element);
+        this.children_.push(<HTMLDivElement>element);
         previousElement = element;
       }
       if ('getDeclutter' in layer) {
         declutterLayers.push(
-          /** @type {import("../layer/BaseVector").default} */ (layer)
+          /** @type {import("../layer/BaseVector").default} */ (<BaseVectorLayer>layer)
         );
       }
     }
@@ -149,7 +149,7 @@ class CompositeMapRenderer extends MapRenderer {
 
     replaceChildren(this.element_, this.children_);
 
-    this.dispatchRenderEvent(RenderEventType.POSTCOMPOSE, frameState);
+    this.dispatchRenderEvent(EventType.POSTCOMPOSE, frameState);
 
     if (!this.renderedVisible_) {
       this.element_.style.display = '';

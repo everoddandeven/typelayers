@@ -10,7 +10,7 @@ import WebGLBaseTileLayerRenderer, {
   Uniforms as BaseUniforms,
   getCacheKey,
 } from './TileLayerBase';
-import {AttributeType} from '../../webgl/Helper';
+import {AttributeDescription, AttributeType, UniformValue} from '../../webgl/Helper';
 import {ELEMENT_ARRAY_BUFFER, STATIC_DRAW} from '../../webgl';
 import {apply as applyTransform} from '../../transform';
 import {
@@ -21,6 +21,8 @@ import {
 import {fromUserExtent} from '../../proj';
 import {fromTransform as mat4FromTransform} from '../../vec/mat4';
 import {toSize} from '../../size';
+import WebGLTile from "../../layer/WebGLTile";
+import PaletteTexture from "../../webgl/PaletteTexture";
 
 export const Uniforms = {
   ...BaseUniforms,
@@ -39,7 +41,7 @@ export const Attributes = {
 /**
  * @type {Array<import('../../webgl/Helper').AttributeDescription>}
  */
-const attributeDescriptions = [
+const attributeDescriptions: AttributeDescription[] = [
   {
     name: Attributes.TEXTURE_COORD,
     size: 2,
@@ -47,25 +49,31 @@ const attributeDescriptions = [
   },
 ];
 
-/**
- * @typedef {Object} Options
- * @property {string} vertexShader Vertex shader source.
- * @property {string} fragmentShader Fragment shader source.
- * @property {Object<string, import("../../webgl/Helper").UniformValue>} [uniforms] Additional uniforms
- * made available to shaders.
- * @property {Array<import("../../webgl/PaletteTexture").default>} [paletteTextures] Palette textures.
- * @property {number} [cacheSize=512] The texture cache size.
- */
+export interface WebGLTileLayerRendererOptions {
+  vertexShader: string;
+  fragmentShader: string;
+  uniforms?: {[key: string]: UniformValue};
+  paletteTextures?: PaletteTexture[];
+  cacheSize?: number;
+}
 
 /**
  * @typedef {import("../../layer/WebGLTile").default} LayerType
  */
+
+export type LayerType = WebGLTile;
+
 /**
  * @typedef {import("../../webgl/TileTexture").TileType} TileTextureType
  */
+
+export type TileTextureType = TileTexture;
+
 /**
  * @typedef {import("../../webgl/TileTexture").default} TileTextureRepresentation
  */
+
+export type TileTextureRepresentation = TileTexture;
 
 /**
  * @classdesc
@@ -73,12 +81,17 @@ const attributeDescriptions = [
  * @extends {WebGLBaseTileLayerRenderer<LayerType, TileTextureType, TileTextureRepresentation>}
  * @api
  */
-class WebGLTileLayerRenderer extends WebGLBaseTileLayerRenderer {
+class WebGLTileLayerRenderer extends WebGLBaseTileLayerRenderer<LayerType, TileTextureType, TileTextureRepresentation> {
+  private program_: WebGLProgram;
+  private vertexShader_: string;
+  private fragmentShader_: string;
+  private indices_: WebGLArrayBuffer;
+  private paletteTextures_: PaletteTexture[];
   /**
    * @param {LayerType} tileLayer Tile layer.
    * @param {Options} options Options.
    */
-  constructor(tileLayer, options) {
+  constructor(tileLayer: LayerType, options: WebGLTileLayerRendererOptions) {
     super(tileLayer, options);
 
     /**

@@ -4,7 +4,7 @@
 import BaseLayer, {BaseLayerObjectEventTypes} from './Base';
 import EventType from '../events/EventType';
 import LayerProperty from './Property';
-import RenderEventType, {LayerRenderEventTypes} from '../render/EventType';
+import EventType, {LayerRenderEventTypes} from '../render/EventType';
 import View, {ViewState, ViewStateLayerStateExtent} from '../View';
 import {assert} from '../asserts';
 import {intersects} from '../extent';
@@ -31,7 +31,7 @@ export type LayerOnSignature<Return> =
     CombinedOnSignature<EventTypes | BaseLayerObjectEventTypes | LayerEventType | LayerRenderEventTypes, Return>;
 
 
-export interface LayerOptions<SourceType extends Source> {
+export interface LayerOptions<SourceType extends Source = Source> {
   className?: string;
   opacity?: number;
   visible?: boolean;
@@ -49,7 +49,7 @@ export interface LayerOptions<SourceType extends Source> {
 
 export interface LayerState
 {
-  layer?: BaseLayer,
+  layer?: Layer,
   opacity?: number;
   visible?: boolean,
   managed?: boolean,
@@ -87,7 +87,7 @@ export interface LayerState
  * @template {import("../renderer/Layer").default} [RendererType=import("../renderer/Layer").default]
  * @api
  */
-class Layer<SourceType extends Source, RenderType extends LayerRenderer<any>> extends BaseLayer {
+class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer = LayerRenderer> extends BaseLayer {
   private mapPrecomposeKey_: EventsKey;
   private mapRenderKey_: EventsKey;
   private sourceChangeKey_: EventsKey;
@@ -422,7 +422,7 @@ class Layer<SourceType extends Source, RenderType extends LayerRenderer<any>> ex
     if (map) {
       this.mapPrecomposeKey_ = listen(
         map,
-        RenderEventType.PRECOMPOSE,
+        EventType.PRECOMPOSE,
         function (evt) {
           const renderEvent =
             /** @type {import("../render/Event").default} */ (evt);
@@ -462,6 +462,7 @@ class Layer<SourceType extends Source, RenderType extends LayerRenderer<any>> ex
     if (!this.renderer_) {
       this.renderer_ = this.createRenderer();
     }
+
     return this.renderer_;
   }
 

@@ -19,6 +19,7 @@ import TileSource from "../source/Tile";
 import {FeatureCallback} from "./vector";
 import {FeatureLike} from "../Feature";
 import { Listener } from '../events';
+import BaseLayer from "../layer/Base";
 
 /**
  * @template {import("../layer/Layer").default} LayerType
@@ -26,7 +27,7 @@ import { Listener } from '../events';
 
 //export type LayerType = Layer;
 
-abstract class LayerRenderer<LayerType extends Layer<any, any>> extends Observable {
+abstract class LayerRenderer<LayerType extends BaseLayer = BaseLayer> extends Observable {
   /**
    * @param {LayerType} layer Layer.
    */
@@ -218,6 +219,8 @@ abstract class LayerRenderer<LayerType extends Layer<any, any>> extends Observab
     delete this.layer_;
     super.disposeInternal();
   }
+
+  public renderDeclutter(frameState: FrameState): void {};
 }
 
 export default LayerRenderer;

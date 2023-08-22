@@ -24,12 +24,12 @@ interface TileRepresentationOptions {
  * @template {import("../Tile").default} TileType
  * @abstract
  */
-abstract class BaseTileRepresentation extends EventTarget {
+abstract class BaseTileRepresentation<TileType extends Tile = Tile> extends EventTarget {
   /**
    * @param {TileRepresentationOptions<TileType>} options The tile representation options.
    */
 
-  public tile: BaseTileType;
+  public tile: TileType;
 
   protected gutter_: number;
   protected helper_: Helper;
@@ -65,7 +65,7 @@ abstract class BaseTileRepresentation extends EventTarget {
   /**
    * @param {TileType} tile Tile.
    */
-  public setTile(tile: BaseTileType): void {
+  public setTile(tile: TileType): void {
     if (tile !== this.tile) {
       if (this.tile) {
         this.tile.removeEventListener(EventType.CHANGE, this.handleTileChange_);

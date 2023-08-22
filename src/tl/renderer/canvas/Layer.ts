@@ -3,7 +3,7 @@
  */
 import LayerRenderer from '../Layer';
 import RenderEvent from '../../render/Event';
-import RenderEventType from '../../render/EventType';
+import EventType from '../../render/EventType';
 import {
   apply as applyTransform,
   compose as composeTransform,
@@ -44,7 +44,7 @@ export function createPixelContext(): void {
  * @template {import("../../layer/Layer").default} LayerType
  * @extends {LayerRenderer<LayerType>}
  */
-abstract class CanvasLayerRenderer<LayerType extends Layer> extends LayerRenderer<LayerType> {
+abstract class CanvasLayerRenderer<LayerType extends Layer = Layer> extends LayerRenderer<LayerType> {
   private pixelContext_: CanvasRenderingContext2D;
 
   protected container: HTMLElement;
@@ -259,7 +259,7 @@ abstract class CanvasLayerRenderer<LayerType extends Layer> extends LayerRendere
    * @param {import("../../Map").FrameState} frameState Frame state.
    * @private
    */
-  private dispatchRenderEvent_(type: RenderEventType, context: CanvasRenderingContext2D, frameState: FrameState): void {
+  private dispatchRenderEvent_(type: EventType, context: CanvasRenderingContext2D, frameState: FrameState): void {
     const layer = this.getLayer();
     if (layer.hasListener(type)) {
       const event = new RenderEvent(
@@ -279,7 +279,7 @@ abstract class CanvasLayerRenderer<LayerType extends Layer> extends LayerRendere
    */
   protected preRender(context: CanvasRenderingContext2D, frameState: FrameState): void {
     this.frameState = frameState;
-    this.dispatchRenderEvent_(RenderEventType.PRERENDER, context, frameState);
+    this.dispatchRenderEvent_(EventType.PRERENDER, context, frameState);
   }
 
   /**
@@ -288,7 +288,7 @@ abstract class CanvasLayerRenderer<LayerType extends Layer> extends LayerRendere
    * @protected
    */
   protected postRender(context: CanvasRenderingContext2D, frameState: FrameState): void {
-    this.dispatchRenderEvent_(RenderEventType.POSTRENDER, context, frameState);
+    this.dispatchRenderEvent_(EventType.POSTRENDER, context, frameState);
   }
 
   /**

@@ -10,16 +10,10 @@ import Style from "../style/Style";
 import Layer from "../layer/Layer";
 import Source from "../source/Source";
 import SimpleGeometry from "../geom/SimpleGeometry";
-
-/**
- * Feature callback. The callback will be called with three arguments. The first
- * argument is one {@link module:tl/Feature~Feature feature} or {@link module:tl/render/Feature~RenderFeature render feature}
- * at the pixel, the second is the {@link module:tl/layer/Layer~Layer layer} of the feature and will be null for
- * unmanaged layers. The third is the {@link module:tl/geom/SimpleGeometry~SimpleGeometry} of the feature. For features
- * with a GeometryCollection geometry, it will be the first detected geometry from the collection.
- * @template T
- * @typedef {function(import("../Feature").FeatureLike, import("../layer/Layer").default<import("../source/Source").default>, import("../geom/SimpleGeometry").default): T} FeatureCallback
- */
+import {DeclutterImageWithText} from "../render/canvas";
+import {Polygon} from "../geom";
+import RenderFeature from "../render/Feature";
+import MultiPoint from "../geom/MultiPoint";
 
 export type FeatureCallback<T> = (feature: FeatureLike, layer: Layer, source: Source, geometry: SimpleGeometry) => T;
 
@@ -35,7 +29,7 @@ export const SIMPLIFY_TOLERANCE: number = 0.5;
  *                function(import("../render/canvas/BuilderGroup").default, import("../geom/Geometry").default,
  *                         import("../style/Style").default, Object): void>}
  */
-export const GEOMETRY_RENDERERS = {
+export const GEOMETRY_RENDERERS: {[key: string]: Function} = {
   'Point': renderPointGeometry,
   'LineString': renderLineStringGeometry,
   'Polygon': renderPolygonGeometry,
@@ -361,7 +355,7 @@ function renderPointGeometry(
   const imageStyle = style.getImage();
   const textStyle = style.getText();
   /** @type {import("../render/canvas").DeclutterImageWithText} */
-  let declutterImageWithText;
+  let declutterImageWithText: DeclutterImageWithText = null;
   if (imageStyle) {
     if (imageStyle.getImageState() != ImageState.LOADED) {
       return;
@@ -410,16 +404,16 @@ function renderPointGeometry(
  * @param {import("../render/canvas/BuilderGroup").default} [declutterBuilderGroup] Builder for decluttering.
  */
 function renderMultiPointGeometry(
-  builderGroup,
-  geometry,
-  style,
-  feature,
-  declutterBuilderGroup
-) {
+  builderGroup: BuilderGroup,
+  geometry: MultiPoint | RenderFeature,
+  style: Style,
+  feature: FeatureLike,
+  declutterBuilderGroup?: BuilderGroup
+): void {
   const imageStyle = style.getImage();
   const textStyle = style.getText();
   /** @type {import("../render/canvas").DeclutterImageWithText} */
-  let declutterImageWithText;
+  let declutterImageWithText: DeclutterImageWithText = null;
   if (imageStyle) {
     if (imageStyle.getImageState() != ImageState.LOADED) {
       return;
@@ -468,12 +462,12 @@ function renderMultiPointGeometry(
  * @param {import("../render/canvas/BuilderGroup").default} [declutterBuilderGroup] Builder for decluttering.
  */
 function renderPolygonGeometry(
-  builderGroup,
-  geometry,
-  style,
-  feature,
-  declutterBuilderGroup
-) {
+  builderGroup: BuilderGroup,
+  geometry: Polygon | RenderFeature,
+  style: Style,
+  feature: FeatureLike,
+  declutterBuilderGroup?: BuilderGroup
+): void {
   const fillStyle = style.getFill();
   const strokeStyle = style.getStroke();
   if (fillStyle || strokeStyle) {

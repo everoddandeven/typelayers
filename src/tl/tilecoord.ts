@@ -1,6 +1,7 @@
 /**
  * @module tl/tilecoord
  */
+import TileGrid from "./tilegrid/TileGrid";
 
 export type TileCoord = [number, number, number];
 
@@ -18,7 +19,7 @@ export type TileCoord = [number, number, number];
  * @param {TileCoord} [tileCoord] Tile coordinate.
  * @return {TileCoord} Tile coordinate.
  */
-export function createOrUpdate(z: number, x: number, y: number, tileCoord: TileCoord): TileCoord {
+export function createOrUpdate(z: number, x: number, y: number, tileCoord?: TileCoord): TileCoord {
   if (tileCoord !== undefined) {
     tileCoord[0] = z;
     tileCoord[1] = x;

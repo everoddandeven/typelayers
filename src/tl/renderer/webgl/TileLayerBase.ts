@@ -11,19 +11,26 @@ import {abstract, getUid} from '../../util';
 import {create as createMat4} from '../../vec/mat4';
 import {
   createOrUpdate as createTileCoord,
-  getKey as getTileCoordKey,
+  getKey as getTileCoordKey, TileCoord,
 } from '../../tilecoord';
 import {
   create as createTransform,
   reset as resetTransform,
   rotate as rotateTransform,
-  scale as scaleTransform,
+  scale as scaleTransform, Transform,
   translate as translateTransform,
 } from '../../transform';
 import {descending} from '../../array';
 import {fromUserExtent} from '../../proj';
-import {getIntersection, isEmpty} from '../../extent';
-import {toSize} from '../../size';
+import {Extent, getIntersection, isEmpty} from '../../extent';
+import {Size, toSize} from '../../size';
+import BaseTileRepresentation from "../../webgl/BaseTileRepresentation";
+import Tile from "../../Tile";
+import {FrameState} from "../../Map";
+import TileSource from "../../source/Tile";
+import {UniformValue} from "../../webgl/Helper";
+import BaseTileLayer from "../../layer/BaseTile";
+import Projection from "../../proj/Projection";
 
 export const Uniforms = {
   TILE_TRANSFORM: 'u_tileTransform',
@@ -40,30 +47,28 @@ export const Uniforms = {
 /**
  * @type {Object<string, boolean>}
  */
-const empty = {};
+const empty: {[key: string]: boolean} = {};
 
 /**
  * Transform a zoom level into a depth value ranging from -1 to 1.
  * @param {number} z A zoom level.
  * @return {number} A depth value.
  */
-function depthForZ(z) {
+function depthForZ(z: number): number {
   return 1 / (z + 2);
 }
 
-/**
- * @typedef {import("../../webgl/BaseTileRepresentation").default<import("../../Tile").default>} AbstractTileRepresentation
- */
-/**
- * @typedef {Object} TileRepresentationLookup
- * @property {Set<string>} tileIds The set of tile ids in the lookup.
- * @property {Object<number, Set<AbstractTileRepresentation>>} representationsByZ Tile representations by zoom level.
- */
+export type AbstractTileRepresentation = BaseTileRepresentation<Tile>;
+
+export interface TileRepresentationLookup {
+  tileIds: Set<string>;
+  representationsByZ: {[key: number]: Set<AbstractTileRepresentation>};
+}
 
 /**
  * @return {TileRepresentationLookup} A new tile representation lookup.
  */
-export function newTileRepresentationLookup() {
+export function newTileRepresentationLookup(): TileRepresentationLookup {
   return {tileIds: new Set(), representationsByZ: {}};
 }
 
@@ -73,7 +78,7 @@ export function newTileRepresentationLookup() {
  * @param {import("../../Tile").default} tile A tile.
  * @return {boolean} The tile is already in the lookup.
  */
-function lookupHasTile(tileRepresentationLookup, tile) {
+function lookupHasTile(tileRepresentationLookup: TileRepresentationLookup, tile: Tile): boolean {
   return tileRepresentationLookup.tileIds.has(getUid(tile));
 }
 
@@ -84,10 +89,10 @@ function lookupHasTile(tileRepresentationLookup, tile) {
  * @param {number} z The zoom level.
  */
 function addTileRepresentationToLookup(
-  tileRepresentationLookup,
-  tileRepresentation,
-  z
-) {
+  tileRepresentationLookup: TileRepresentationLookup,
+  tileRepresentation: AbstractTileRepresentation,
+  z: number
+): void {
   const representationsByZ = tileRepresentationLookup.representationsByZ;
   if (!(z in representationsByZ)) {
     representationsByZ[z] = new Set();
@@ -101,7 +106,7 @@ function addTileRepresentationToLookup(
  * @param {import("../../extent").Extent} extent The frame extent.
  * @return {import("../../extent").Extent} Frame extent intersected with layer extents.
  */
-function getRenderExtent(frameState, extent) {
+function getRenderExtent(frameState: FrameState, extent: Extent): Extent {
   const layerState = frameState.layerStatesArray[frameState.layerIndex];
   if (layerState.extent) {
     extent = getIntersection(
@@ -110,7 +115,7 @@ function getRenderExtent(frameState, extent) {
     );
   }
   const source = /** @type {import("../../source/Tile").default} */ (
-    layerState.layer.getRenderSource()
+    <TileSource>layerState.layer.getRenderSource()
   );
   if (!source.getWrapX()) {
     const gridExtent = source
@@ -123,21 +128,21 @@ function getRenderExtent(frameState, extent) {
   return extent;
 }
 
-export function getCacheKey(source, tileCoord) {
+export function getCacheKey(source: TileSource, tileCoord: TileCoord): string {
   return `${source.getKey()},${getTileCoordKey(tileCoord)}`;
 }
 
-/**
- * @typedef {Object} Options
- * @property {Object<string, import("../../webgl/Helper").UniformValue>} [uniforms] Additional uniforms
- * made available to shaders.
- * @property {number} [cacheSize=512] The tile representation cache size.
- * @property {Array<import('./Layer').PostProcessesOptions>} [postProcesses] Post-processes definitions.
- */
+export interface WebGLBaseTileLayerRendererOptions {
+  uniforms?: {[key: string]: UniformValue};
+  cacheSize?: number;
+  postProcesses?: Array<import('./Layer').PostProcessesOptions>;
+}
 
 /**
  * @typedef {import("../../layer/BaseTile").default} BaseLayerType
  */
+
+export type BaseLayerType = BaseTileLayer;
 
 /**
  * @classdesc
@@ -147,12 +152,21 @@ export function getCacheKey(source, tileCoord) {
  * @template {import("../../webgl/BaseTileRepresentation").default<TileType>} TileRepresentation
  * @extends {WebGLLayerRenderer<LayerType>}
  */
-class WebGLBaseTileLayerRenderer extends WebGLLayerRenderer {
+class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType> extends WebGLLayerRenderer<LayerType> {
+  public renderComplete: boolean;
+  private tileTransform_: Transform;
+  protected tempMat4: number[];
+  private tempTileRange_: TileRange;
+  private tempTileCoord_: TileCoord;
+  private tempSize_: Size;
+  protected tileRepresentationCache: LRUCache<any>;
+  protected frameState: FrameState;
+  private projection_: Projection;
   /**
    * @param {LayerType} tileLayer Tile layer.
    * @param {Options} options Options.
    */
-  constructor(tileLayer, options) {
+  constructor(tileLayer: LayerType, options: WebGLBaseTileLayerRendererOptions) {
     super(tileLayer, {
       uniforms: options.uniforms,
       postProcesses: options.postProcesses,
@@ -291,7 +305,7 @@ class WebGLBaseTileLayerRenderer extends WebGLLayerRenderer {
   ) {
     const viewState = frameState.viewState;
     const tileLayer = this.getLayer();
-    const tileSource = tileLayer.getRenderSource();
+    const tileSource = <TileSource>tileLayer.getRenderSource();
     const tileGrid = tileSource.getTileGridForProjection(viewState.projection);
     const gutter = tileSource.getGutterForProjection(viewState.projection);
 
@@ -526,7 +540,7 @@ class WebGLBaseTileLayerRenderer extends WebGLLayerRenderer {
 
     const viewState = frameState.viewState;
     const tileLayer = this.getLayer();
-    const tileSource = tileLayer.getRenderSource();
+    const tileSource = <TileSource>tileLayer.getRenderSource();
     const tileGrid = tileSource.getTileGridForProjection(viewState.projection);
     const gutter = tileSource.getGutterForProjection(viewState.projection);
     const extent = getRenderExtent(frameState, frameState.extent);
@@ -731,7 +745,7 @@ class WebGLBaseTileLayerRenderer extends WebGLLayerRenderer {
 
     let covered = true;
     const tileRepresentationCache = this.tileRepresentationCache;
-    const source = this.getLayer().getRenderSource();
+    const source = <TileSource>this.getLayer().getRenderSource();
     for (let x = tileRange.minX; x <= tileRange.maxX; ++x) {
       for (let y = tileRange.minY; y <= tileRange.maxY; ++y) {
         const cacheKey = getCacheKey(source, [altZ, x, y]);

@@ -11,6 +11,7 @@ import Geometry, {GeometryType} from "../geom/Geometry";
 import RenderFeature from "../render/Feature";
 import Image from "./Image";
 import {Color} from "../color";
+import Text from "./Text";
 
 /**
  * A function that takes an {@link module:tl/Feature~Feature} and a `{number}`
@@ -163,7 +164,7 @@ class Style {
    * @param {Options} [options] Style options.
    */
 
-  private geometry_: Geometry | GeometryFunction;
+  private geometry_: Geometry | GeometryFunction | string;
   private geometryFunction_: GeometryFunction;
   private fill_: Fill;
   private image_: Image;
@@ -308,7 +309,7 @@ class Style {
    * be rendered with this style.
    * @api
    */
-  public getGeometry(): Geometry | GeometryFunction {
+  public getGeometry(): Geometry | GeometryFunction | string {
     return this.geometry_;
   }
 
