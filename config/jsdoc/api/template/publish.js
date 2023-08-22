@@ -32,7 +32,7 @@ function find(spec) {
 }
 
 function getShortName(longname) {
-  if (!longname.includes('module:ol/')) {
+  if (!longname.includes('module:tl/')) {
     return longname;
   }
   if (longname.includes('|')) {
@@ -49,7 +49,7 @@ function linkto(longname, linkText, cssClass, fragmentId) {
     return helper.linkto(longname, linkText, cssClass, fragmentId);
   }
 
-  if (!longname.includes('module:ol/')) {
+  if (!longname.includes('module:tl/')) {
     return helper.linkto(longname, linkText, cssClass, fragmentId);
   }
 
@@ -72,7 +72,7 @@ function linkto(longname, linkText, cssClass, fragmentId) {
   }
   if (parseTypes) {
     // collections or generics with unions get parsed by catharsis and
-    // will unfortunamely include long module:ol/foo names
+    // will unfortunamely include long module:tl/foo names
     return helper.linkto(longname, '', cssClass, fragmentId);
   }
 

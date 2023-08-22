@@ -29,7 +29,7 @@ exports.publish = function (data, opts) {
       this.meta &&
       this.meta.path &&
       !this.longname.startsWith('<anonymous>') &&
-      this.longname !== 'module:ol'
+      this.longname !== 'module:tl'
     );
   }).get();
 

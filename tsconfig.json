@@ -57,7 +57,7 @@
   },
   "include": [
     "types/**/*.ts",
-    "src/ol/**/*.js",
-    "src/ol/**/*.ts"
+    "src/tl/**/*.js",
+    "src/tl/**/*.ts"
   ]
 }

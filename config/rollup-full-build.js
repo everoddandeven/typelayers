@@ -6,10 +6,10 @@ import terser from '@rollup/plugin-terser';
 export default {
   input: 'build/index.ts',
   output: {
-    name: 'ol',
+    name: 'tl',
     format: 'iife',
     exports: 'default',
-    file: 'build/full/ol.js',
+    file: 'build/full/tl.js',
     sourcemap: true,
   },
   plugins: [

@@ -88,17 +88,17 @@ Below is an example of how to build and link it to `sample-project`.
 ```shell
 cd openlayers
 npm run build-package
-cd build/ol
+cd build/tl
 npm link
 cd /sample-project
-npm link ol
+npm link tl
 ```
 
 To remove the link run the following commands
 
 ```shell
 cd sample-project
-npm unlink --no-save ol
+npm unlink --no-save tl
 cd ../openlayers
 npm unlink
 ```
