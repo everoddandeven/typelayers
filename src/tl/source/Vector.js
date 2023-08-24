@@ -19,6 +19,7 @@ import {getUid} from '../util';
 import {isEmpty} from '../obj';
 import {listen, unlistenByKey} from '../events';
 import {xhr} from '../featureloader';
+import {Geometry} from "../geom";
 
 /**
  * A function that takes an {@link module:tl/extent~Extent} and a resolution as arguments, and
@@ -172,7 +173,7 @@ export class VectorSourceEvent extends Event {
  * @api
  * @template {import("../geom/Geometry").default} [Geometry=import("../geom/Geometry").default]
  */
-class VectorSource extends Source {
+class VectorSource <GeometryType extends Geometry = Geometry> extends Source {
   /**
    * @param {Options<Geometry>} [options] Vector source options.
    */

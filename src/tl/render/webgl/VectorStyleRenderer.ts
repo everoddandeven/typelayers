@@ -3,8 +3,8 @@
  */
 import WebGLArrayBuffer from '../../webgl/Buffer';
 import {ARRAY_BUFFER, DYNAMIC_DRAW, ELEMENT_ARRAY_BUFFER} from '../../webgl';
-import Helper, {AttributeType} from '../../webgl/Helper';
-import {WebGLWorkerMessageType} from './constants';
+import Helper, {AttributeDescription, AttributeType, UniformValue} from '../../webgl/Helper';
+import {WebGLWorkerGenerateBuffersMessage, WebGLWorkerMessageType} from './constants';
 import {
   create as createTransform,
   makeInverse as makeInverseTransform, Transform,
@@ -19,6 +19,9 @@ import {
 import {parseLiteralStyle} from '../../webgl/styleparser';
 import {FeatureLike} from "../../Feature";
 import {LiteralStyle} from "../../style/literal";
+import MixedGeometryBatch from "./MixedGeometryBatch";
+import {GeometryType} from "../../geom/Geometry";
+import {FrameState} from "../../Map";
 
 const WEBGL_WORKER = createWebGLWorker();
 let workerMessageCounter: number = 0;
@@ -36,36 +39,14 @@ export enum Attributes {
   PARAMETERS = 'a_parameters',
 }
 
-/**
- * @typedef {Object} AttributeDefinition A description of a custom attribute to be passed on to the GPU, with a value different
- * for each feature.
- * @property {number} [size] Amount of numerical values composing the attribute, either 1, 2, 3 or 4; in case size is > 1, the return value
- * of the callback should be an array; if unspecified, assumed to be a single float value
- * @property {function(import("../../Feature").FeatureLike):number|Array<number>} callback This callback computes the numerical value of the
- * attribute for a given feature.
- */
-
 export interface AttributeDefinition
 {
   size?: number,
   callback: (feature: FeatureLike) => number | number[];
 }
 
-/**
- * @typedef {Object<string, AttributeDefinition>} AttributeDefinitions
- * @typedef {Object<string, import("../../webgl/Helper").UniformValue>} UniformDefinitions
- */
-
 export type AttributeDefinitions = {[key: string]: AttributeDefinition};
 export type UniformDefinitions = {[key: string]: UniformValue};
-
-/**
- * @typedef {Object} WebGLBuffers
- * @property {Array<WebGLArrayBuffer>} polygonBuffers Array containing indices and vertices buffers for polygons
- * @property {Array<WebGLArrayBuffer>} lineStringBuffers Array containing indices and vertices buffers for line strings
- * @property {Array<WebGLArrayBuffer>} pointBuffers Array containing indices and vertices buffers for points
- * @property {import("../../transform").Transform} invertVerticesTransform Inverse of the transform applied when generating buffers
- */
 
 export interface WebGLBuffers
 {
@@ -81,27 +62,11 @@ export interface RenderInstructions {
   pointInstructions?: Float32Array | null;
 }
 
-/**
- * @typedef {Object} ShaderProgram An object containing both shaders (vertex and fragment)
- * @property {string} vertex Vertex shader source
- * @property {string} fragment Fragment shader source
- */
-
 export interface ShaderProgram
 {
   vertex: string,
   fragment: string
 }
-
-/**
- * @typedef {Object} StyleShaders
- * @property {ShaderProgram} [fill] Shaders for filling polygons.
- * @property {ShaderProgram} [stroke] Shaders for line strings and polygon strokes.
- * @property {ShaderProgram} [symbol] Shaders for symbols.
- * @property {AttributeDefinitions} [attributes] Custom attributes made available in the vertex shaders.
- * Default shaders rely on the attributes in {@link Attributes}.
- * @property {UniformDefinitions} [uniforms] Additional uniforms usable in shaders.
- */
 
 export interface StyleShaders
 {
@@ -111,10 +76,6 @@ export interface StyleShaders
   attributes?: AttributeDefinitions,
   uniforms?: UniformDefinitions
 }
-
-/**
- * @typedef {import('../../style/literal').LiteralStyle|StyleShaders} VectorStyle
- */
 
 export type VectorStyle = LiteralStyle | StyleShaders;
 
@@ -147,6 +108,10 @@ class VectorStyleRenderer {
   private symbolFragmentShader_: any;
   private symbolProgram_: WebGLProgram;
   private customAttributes_: any;
+  private pointAttributesDesc_: AttributeDescription[];
+  private lineStringAttributesDesc_: AttributeDescription[];
+  private polygonAttributesDesc_: AttributeDescription[];
+  private uniforms_: UniformDefinitions;
   /**
    * @param {VectorStyle} styleOrShaders Literal style or custom shaders
    * @param {import('../../webgl/Helper').default} helper Helper
@@ -154,7 +119,7 @@ class VectorStyleRenderer {
   constructor(styleOrShaders: VectorStyle, helper: Helper) {
     this.helper_ = helper;
 
-    let shaders = /** @type {StyleShaders} */ (styleOrShaders);
+    let shaders = /** @type {StyleShaders} */ (<StyleShaders>styleOrShaders);
 
     // TODO: improve discrimination between shaders and style
     const isShaders =
@@ -295,7 +260,7 @@ class VectorStyleRenderer {
    * @param {import("../../transform").Transform} transform Transform to apply to coordinates
    * @return {Promise<WebGLBuffers>} A promise resolving to WebGL buffers
    */
-  async generateBuffers(geometryBatch, transform) {
+  public async generateBuffers(geometryBatch: MixedGeometryBatch, transform: Transform): Promise<WebGLBuffers> {
     const renderInstructions = this.generateRenderInstructions_(
       geometryBatch,
       transform
@@ -338,7 +303,7 @@ class VectorStyleRenderer {
    * @return {RenderInstructions} Render instructions
    * @private
    */
-  generateRenderInstructions_(geometryBatch, transform) {
+  private generateRenderInstructions_(geometryBatch: MixedGeometryBatch, transform: Transform): RenderInstructions {
     const polygonInstructions = this.hasFill_
       ? generatePolygonRenderInstructions(
           geometryBatch.polygonBatch,
@@ -378,13 +343,13 @@ class VectorStyleRenderer {
    * @return {Promise<Array<WebGLArrayBuffer>>|null} Indices buffer and vertices buffer; null if nothing to render
    * @private
    */
-  generateBuffersForType_(renderInstructions, geometryType, transform) {
+  private generateBuffersForType_(renderInstructions: Float32Array | null, geometryType: GeometryType, transform: Transform): Promise<WebGLArrayBuffer[]> | null {
     if (renderInstructions === null) {
       return null;
     }
 
     const messageId = workerMessageCounter++;
-    let messageType;
+    let messageType: WebGLWorkerMessageType;
     switch (geometryType) {
       case 'Polygon':
         messageType = WebGLWorkerMessageType.GENERATE_POLYGON_BUFFERS;
@@ -400,7 +365,7 @@ class VectorStyleRenderer {
     }
 
     /** @type {import('./constants').WebGLWorkerGenerateBuffersMessage} */
-    const message = {
+    const message: WebGLWorkerGenerateBuffersMessage = {
       id: messageId,
       type: messageType,
       renderInstructions: renderInstructions.buffer,
@@ -416,7 +381,7 @@ class VectorStyleRenderer {
       /**
        * @param {*} event Event.
        */
-      const handleMessage = (event) => {
+      const handleMessage = (event: any): void => {
         const received = event.data;
 
         // this is not the response to our request: skip
@@ -457,7 +422,7 @@ class VectorStyleRenderer {
    * @param {import("../../Map").FrameState} frameState Frame state
    * @param {function(): void} preRenderCallback This callback will be called right before drawing, and can be used to set uniforms
    */
-  render(buffers, frameState, preRenderCallback) {
+  public render(buffers: WebGLBuffers, frameState: FrameState, preRenderCallback: () => void): void {
     this.hasFill_ &&
       this.renderInternal_(
         buffers.polygonBuffers[0],
@@ -497,13 +462,13 @@ class VectorStyleRenderer {
    * @private
    */
   private renderInternal_(
-    indicesBuffer,
-    verticesBuffer,
-    program,
-    attributes,
-    frameState,
-    preRenderCallback
-  ) {
+    indicesBuffer: WebGLArrayBuffer,
+    verticesBuffer: WebGLArrayBuffer,
+    program: WebGLProgram,
+    attributes: AttributeDescription[],
+    frameState: FrameState,
+    preRenderCallback: () => void
+  ): void {
     this.helper_.useProgram(program, frameState);
     this.helper_.bindBuffer(verticesBuffer);
     this.helper_.bindBuffer(indicesBuffer);

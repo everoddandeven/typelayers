@@ -177,7 +177,7 @@ class LRUCache<T> {
   public getKeys(): string[] {
     const keys = new Array(this.count_);
     let i = 0;
-    let entry;
+    let entry: Entry;
     for (entry = this.newest_; entry; entry = entry.older) {
       keys[i++] = entry.key_;
     }

@@ -18,13 +18,6 @@ import {modulo} from '../math';
 import {Coordinate, Coordinates} from "../coordinate";
 import Projection from "../proj/Projection";
 
-/**
- * Single triangle; consists of 3 source points and 3 target points.
- * @typedef {Object} Triangle
- * @property {Array<import("../coordinate").Coordinate>} source Source.
- * @property {Array<import("../coordinate").Coordinate>} target Target.
- */
-
 export interface Triangle
 {
   source: Coordinates,
@@ -181,7 +174,7 @@ class Triangulation {
      * be done. The idea here is to do a linear mapping of the target areas
      * but the actual overall reprojection (can be) extremely non-linear. The
      * default value of MAX_SUBDIVISION was chosen based on mapping a 256x256
-     * tile size. However this function is also called to remap canvas rendered
+     * tile size. However, this function is also called to remap canvas rendered
      * layers which can be much larger. This calculation increases the maxSubdivision
      * value by the right factor so that each 256x256 pixel area has
      * MAX_SUBDIVISION divisions.

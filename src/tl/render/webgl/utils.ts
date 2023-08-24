@@ -2,21 +2,20 @@
  * @module tl/render/webgl/utils
  */
 import earcut from 'earcut';
-import {apply as applyTransform} from '../../transform';
+import {apply as applyTransform, Transform} from '../../transform';
 import {clamp} from '../../math';
+import {Color} from "../../color";
 
 const tmpArray_ = [];
 
-/**
- * An object holding positions both in an index and a vertex buffer.
- * @typedef {Object} BufferPositions
- * @property {number} vertexPosition Position in the vertex buffer
- * @property {number} indexPosition Position in the index buffer
- */
-const bufferPositions_ = {vertexPosition: 0, indexPosition: 0};
+export interface BufferPositions {
+  vertexPosition: number;
+  indexPosition: number;
+}
+const bufferPositions_: BufferPositions = {vertexPosition: 0, indexPosition: 0};
 
-function writePointVertex(buffer, pos, x, y, index) {
-  buffer[pos + 0] = x;
+function writePointVertex(buffer: Float32Array, pos: number, x: number, y: number, index: number): void {
+  buffer[pos] = x;
   buffer[pos + 1] = y;
   buffer[pos + 2] = index;
 }
@@ -35,19 +34,19 @@ function writePointVertex(buffer, pos, x, y, index) {
  * @private
  */
 export function writePointFeatureToBuffers(
-  instructions,
-  elementIndex,
-  vertexBuffer,
-  indexBuffer,
-  customAttributesSize,
-  bufferPositions
-) {
+  instructions: Float32Array,
+  elementIndex: number,
+  vertexBuffer: Float32Array,
+  indexBuffer: Uint32Array,
+  customAttributesSize: number,
+  bufferPositions: BufferPositions
+): BufferPositions {
   // This is for x, y and index
   const baseVertexAttrsCount = 3;
   const baseInstructionsCount = 2;
   const stride = baseVertexAttrsCount + customAttributesSize;
 
-  const x = instructions[elementIndex + 0];
+  const x = instructions[elementIndex];
   const y = instructions[elementIndex + 1];
 
   // read custom numerical attributes on the feature
@@ -101,8 +100,8 @@ export function writePointFeatureToBuffers(
  * @param {Float32Array} instructions Array of render instructions for lines.
  * @param {number} segmentStartIndex Index of the segment start point from which render instructions will be read.
  * @param {number} segmentEndIndex Index of the segment start point from which render instructions will be read.
- * @param {number|null} beforeSegmentIndex Index of the point right before the segment (null if none, e.g this is a line start)
- * @param {number|null} afterSegmentIndex Index of the point right after the segment (null if none, e.g this is a line end)
+ * @param {number|null} beforeSegmentIndex Index of the point right before the segment (null if none, e.g. this is a line start)
+ * @param {number|null} afterSegmentIndex Index of the point right after the segment (null if none, e.g. this is a line end)
  * @param {Array<number>} vertexArray Array containing vertices.
  * @param {Array<number>} indexArray Array containing indices.
  * @param {Array<number>} customAttributes Array of custom attributes value
@@ -111,17 +110,17 @@ export function writePointFeatureToBuffers(
  * @private
  */
 export function writeLineSegmentToBuffers(
-  instructions,
-  segmentStartIndex,
-  segmentEndIndex,
-  beforeSegmentIndex,
-  afterSegmentIndex,
-  vertexArray,
-  indexArray,
-  customAttributes,
-  instructionsTransform,
-  invertInstructionsTransform
-) {
+  instructions: Float32Array,
+  segmentStartIndex: number,
+  segmentEndIndex: number,
+  beforeSegmentIndex: number | null,
+  afterSegmentIndex: number | null,
+  vertexArray: number[],
+  indexArray: number[],
+  customAttributes: number[],
+  instructionsTransform: Transform,
+  invertInstructionsTransform: Transform
+): void {
   // compute the stride to determine how many vertices were already pushed
   const baseVertexAttrsCount = 5; // base attributes: x0, y0, x1, y1, params (vertex number [0-3], join angle 1, join angle 2)
   const stride = baseVertexAttrsCount + customAttributes.length;
@@ -131,7 +130,7 @@ export function writeLineSegmentToBuffers(
   // Depending on whether there are points before and after the segment, its final shape
   // will be different
   const p0 = [
-    instructions[segmentStartIndex + 0],
+    instructions[segmentStartIndex],
     instructions[segmentStartIndex + 1],
   ];
   const p1 = [instructions[segmentEndIndex], instructions[segmentEndIndex + 1]];
@@ -141,7 +140,7 @@ export function writeLineSegmentToBuffers(
   const p0world = applyTransform(invertInstructionsTransform, [...p0]);
   const p1world = applyTransform(invertInstructionsTransform, [...p1]);
 
-  function computeVertexParameters(vertexNumber, joinAngle1, joinAngle2) {
+  function computeVertexParameters(vertexNumber: number, joinAngle1: number, joinAngle2: number): number {
     const shift = 10000;
     const anglePrecision = 1500;
     return (
@@ -153,7 +152,7 @@ export function writeLineSegmentToBuffers(
 
   // compute the angle between p0pA and p0pB
   // returns a value in [0, 2PI]
-  function angleBetween(p0, pA, pB) {
+  function angleBetween(p0: number[], pA: number[], pB: number[]): number {
     const lenA = Math.sqrt(
       (pA[0] - p0[0]) * (pA[0] - p0[0]) + (pA[1] - p0[1]) * (pA[1] - p0[1])
     );
@@ -164,7 +163,7 @@ export function writeLineSegmentToBuffers(
     );
     const tangentB = [(pB[0] - p0[0]) / lenB, (pB[1] - p0[1]) / lenB];
 
-    // this angle can be clockwise or anticlockwise; hence the computation afterwards
+    // this angle can be clockwise or anticlockwise; hence the computation afterward
     const angle =
       lenA === 0 || lenB === 0
         ? 0
@@ -260,12 +259,12 @@ export function writeLineSegmentToBuffers(
  * @private
  */
 export function writePolygonTrianglesToBuffers(
-  instructions,
-  polygonStartIndex,
-  vertexArray,
-  indexArray,
-  customAttributesSize
-) {
+  instructions: Float32Array,
+  polygonStartIndex: number,
+  vertexArray: number[],
+  indexArray: number[],
+  customAttributesSize: number
+): number {
   const instructionsPerVertex = 2; // x, y
   const attributesPerVertex = 2 + customAttributesSize;
   let instructionsIndex = polygonStartIndex;
@@ -305,7 +304,7 @@ export function writePolygonTrianglesToBuffers(
  * @private
  * @return {ImageData} Image data.
  */
-export function getBlankImageData() {
+export function getBlankImageData(): ImageData {
   const canvas = document.createElement('canvas');
   const image = canvas.getContext('2d').createImageData(1, 1);
   image.data[0] = 255;
@@ -322,7 +321,7 @@ export function getBlankImageData() {
  * @param {Array<number>} [array] Reusable array
  * @return {Array<number>} Color array containing the encoded id
  */
-export function colorEncodeId(id, array) {
+export function colorEncodeId(id: number, array?: number[]): number[] {
   array = array || [];
   const radix = 256;
   const divide = radix - 1;
@@ -339,7 +338,7 @@ export function colorEncodeId(id, array) {
  * @param {Array<number>} color Color array containing the encoded id
  * @return {number} Decoded id
  */
-export function colorDecodeId(color) {
+export function colorDecodeId(color: Color): number {
   let id = 0;
   const radix = 256;
   const mult = radix - 1;

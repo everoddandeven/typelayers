@@ -3,11 +3,15 @@
  */
 
 import TileImage from './TileImage';
-import {applyTransform, intersects} from '../extent';
+import {applyTransform, Extent, intersects} from '../extent';
 import {createFromTileUrlFunctions} from '../tileurlfunction';
-import {createOrUpdate} from '../tilecoord';
+import {createOrUpdate, TileCoord} from '../tilecoord';
 import {createXYZ, extentFromProjection} from '../tilegrid';
 import {get as getProjection, getTransformFromProjections} from '../proj';
+import {TileLoadFunction} from "../Tile";
+import {NearestDirectionFunction} from "../array";
+import {Size} from "../size";
+import Projection from "../proj/Projection";
 
 /**
  * @param {import('../tilecoord').TileCoord} tileCoord Tile coord.
@@ -44,70 +48,52 @@ const TOS_ATTRIBUTION =
   'href="https://www.microsoft.com/maps/product/terms.html" target="_blank">' +
   'Terms of Use</a>';
 
-/**
- * @typedef {Object} Options
- * @property {number} [cacheSize] Initial tile cache size. Will auto-grow to hold at least the number of tiles in the viewport.
- * @property {boolean} [hidpi=false] If `true` hidpi tiles will be requested.
- * @property {string} [culture='en-us'] Culture code.
- * @property {string} key Bing Maps API key. Get yours at https://www.bingmapsportal.com/.
- * @property {string} imagerySet Type of imagery.
- * @property {boolean} [interpolate=true] Use interpolated values when resampling.  By default,
- * linear interpolation is used when resampling.  Set to false to use the nearest neighbor instead.
- * @property {number} [maxZoom=21] Max zoom. Default is what's advertized by the BingMaps service.
- * @property {number} [reprojectionErrorThreshold=0.5] Maximum allowed reprojection error (in pixels).
- * Higher values can increase reprojection performance, but decrease precision.
- * @property {import("../Tile").LoadFunction} [tileLoadFunction] Optional function to load a tile given a URL. The default is
- * ```js
- * function(imageTile, src) {
- *   imageTile.getImage().src = src;
- * };
- * ```
- * @property {boolean} [wrapX=true] Whether to wrap the world horizontally.
- * @property {number} [transition] Duration of the opacity transition for rendering.
- * To disable the opacity transition, pass `transition: 0`.
- * @property {number|import("../array").NearestDirectionFunction} [zDirection=0]
- * Choose whether to use tiles with a higher or lower zoom level when between integer
- * zoom levels. See {@link module:tl/tilegrid/TileGrid~TileGrid#getZForResolution}.
- * @property {boolean} placeholderTiles Whether to show BingMaps placeholder tiles when zoomed past the maximum level provided in an area. When `false`, requests beyond
- * the maximum zoom level will return no tile. When `true`, the placeholder tile will be returned.
- */
+export interface BingMpOptions {
+  cacheSize?: number;
+  hidpi?: boolean;
+  culture?: string;
+  key: string;
+  imagerySet: string;
+  interpolate?: boolean;
+  maxZoom?: number;
+  reprojectionErrorThreshold?: number;
+  tileLoadFunction?: TileLoadFunction;
+  wrapX?: boolean;
+  transition?: number;
+  zDirection?: number | NearestDirectionFunction;
+  placeholderTiles: boolean;
+}
 
-/**
- * @typedef {Object} BingMapsImageryMetadataResponse
- * @property {number} statusCode The response status code
- * @property {string} statusDescription The response status description
- * @property {string} authenticationResultCode The authentication result code
- * @property {Array<ResourceSet>} resourceSets The array of resource sets
- */
+export interface BingMapsImageryMetadataResponse {
+  statusCode: number;
+  statusDescription: string;
+  authenticationResultCode: string;
+  resourceSets: ResourceSet[];
+}
 
-/**
- * @typedef {Object} ResourceSet
- * @property {Array<Resource>} resources Resources.
- */
+interface ImageryProvider {
+  coverageAreas: CoverageArea[];
+  attribution?: string;
+}
+interface Resource {
+  imageHeight: number;
+  imageWidth: number;
+  zoomMin: number;
+  zoomMax: number;
+  imageUrl: string;
+  imageUrlSubdomains: string[];
+  imageryProviders?: ImageryProvider[];
+}
 
-/**
- * @typedef {Object} Resource
- * @property {number} imageHeight The image height
- * @property {number} imageWidth The image width
- * @property {number} zoomMin The minimum zoom level
- * @property {number} zoomMax The maximum zoom level
- * @property {string} imageUrl The image URL
- * @property {Array<string>} imageUrlSubdomains The image URL subdomains for rotation
- * @property {Array<ImageryProvider>} [imageryProviders] The array of ImageryProviders
- */
+export interface ResourceSet {
+    resources: Resource[];
+}
 
-/**
- * @typedef {Object} ImageryProvider
- * @property {Array<CoverageArea>} coverageAreas The coverage areas
- * @property {string} [attribution] The attribution
- */
-
-/**
- * @typedef {Object} CoverageArea
- * @property {number} zoomMin The minimum zoom
- * @property {number} zoomMax The maximum zoom
- * @property {Array<number>} bbox The coverage bounding box
- */
+export interface CoverageArea {
+  zoomMin: number;
+  zoomMax: number;
+  bbox: number[];
+}
 
 /**
  * @classdesc
@@ -115,10 +101,16 @@ const TOS_ATTRIBUTION =
  * @api
  */
 class BingMaps extends TileImage {
+  private hidpi_: boolean;
+  private culture_: string;
+  private maxZoom_: number;
+  private apiKey_: string;
+  private imagerySet_: string;
+  private placeholderTiles_: boolean;
   /**
    * @param {Options} options Bing Maps options.
    */
-  constructor(options) {
+  constructor(options: BingMpOptions) {
     const hidpi = options.hidpi !== undefined ? options.hidpi : false;
 
     super({
@@ -181,7 +173,7 @@ class BingMaps extends TileImage {
       this.culture_;
 
     fetch(url)
-      .then((response) => responseon())
+      .then((response) => responseon() )
       .then((json) => this.handleImageryMetadataResponse(json));
   }
 
@@ -191,7 +183,7 @@ class BingMaps extends TileImage {
    * @return {string} The api key.
    * @api
    */
-  getApiKey() {
+  public getApiKey(): string {
     return this.apiKey_;
   }
 
@@ -201,14 +193,14 @@ class BingMaps extends TileImage {
    * @return {string} The imagery set.
    * @api
    */
-  getImagerySet() {
+  public getImagerySet(): string {
     return this.imagerySet_;
   }
 
   /**
    * @param {BingMapsImageryMetadataResponse} response Response.
    */
-  handleImageryMetadataResponse(response) {
+  public handleImageryMetadataResponse(response: BingMapsImageryMetadataResponse): void {
     if (
       response.statusCode != 200 ||
       response.statusDescription != 'OK' ||
@@ -229,15 +221,14 @@ class BingMaps extends TileImage {
     const tileSize =
       resource.imageWidth == resource.imageHeight
         ? resource.imageWidth / scale
-        : [resource.imageWidth / scale, resource.imageHeight / scale];
+        : <Size>[resource.imageWidth / scale, resource.imageHeight / scale];
 
-    const tileGrid = createXYZ({
+    this.tileGrid = createXYZ({
       extent: extent,
       minZoom: resource.zoomMin,
       maxZoom: maxZoom,
       tileSize: tileSize,
     });
-    this.tileGrid = tileGrid;
 
     const culture = this.culture_;
     const hidpi = this.hidpi_;
@@ -245,7 +236,7 @@ class BingMaps extends TileImage {
     this.tileUrlFunction = createFromTileUrlFunctions(
       resource.imageUrlSubdomains.map(function (subdomain) {
         /** @type {import('../tilecoord').TileCoord} */
-        const quadKeyTileCoord = [0, 0, 0];
+        const quadKeyTileCoord: TileCoord = [0, 0, 0];
         const imageUrl = resource.imageUrl
           .replace('{subdomain}', subdomain)
           .replace('{culture}', culture);
@@ -256,7 +247,7 @@ class BingMaps extends TileImage {
            * @param {import("../proj/Projection").default} projection Projection.
            * @return {string|undefined} Tile URL.
            */
-          function (tileCoord, pixelRatio, projection) {
+          function (tileCoord: TileCoord, pixelRatio: number, projection: Projection): string | undefined {
             if (!tileCoord) {
               return undefined;
             }
@@ -311,7 +302,7 @@ class BingMaps extends TileImage {
             const coverageArea = coverageAreas[i];
             if (zoom >= coverageArea.zoomMin && zoom <= coverageArea.zoomMax) {
               const bbox = coverageArea.bbox;
-              const epsg4326Extent = [bbox[1], bbox[0], bbox[3], bbox[2]];
+              const epsg4326Extent: Extent = [bbox[1], bbox[0], bbox[3], bbox[2]];
               const extent = applyTransform(epsg4326Extent, transform);
               if (intersects(extent, frameState.extent)) {
                 intersecting = true;

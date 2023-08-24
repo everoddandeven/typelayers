@@ -94,7 +94,7 @@ class ZoomSlider extends Control {
      * @type {boolean}
      * @private
      */
-    this.dragging_;
+    this.dragging_ = false;
 
     /**
      * @type {number}
@@ -112,13 +112,13 @@ class ZoomSlider extends Control {
      * @type {number|undefined}
      * @private
      */
-    this.startX_;
+    this.startX_ = null;
 
     /**
      * @type {number|undefined}
      * @private
      */
-    this.startY_;
+    this.startY_ = null;
 
     /**
      * The calculated thumb size (border box plus margins).  Set when initSlider_

@@ -44,7 +44,7 @@ export interface ImageOrLabelDimensions {
   drawImageH: number;
   originX: number;
   originY: number;
-  scale: number[];
+  scale: Size;
   declutterBox: BBox;
   canvasTransform: Transform;
 }
@@ -56,7 +56,7 @@ export type ReplayImageOrLabelArgs = { 0: CanvasRenderingContext2D; 1: number; 2
  * @typedef {function(import("../../Feature").FeatureLike, import("../../geom/SimpleGeometry").default): T} FeatureCallback
  */
 
-export type FeatureCallback = (feature: FeatureLike, geometry: SimpleGeometry) => any;
+export type FeatureCallback<T> = (feature: FeatureLike, geometry: SimpleGeometry) => T;
 
 /**
  * @type {import("../../extent").Extent}
@@ -318,7 +318,7 @@ class Executor {
     let lineOffset = 0;
     let widthHeightIndex = 0;
     let lineWidthIndex = 0;
-    let previousFont;
+    let previousFont = null;
     for (let i = 0, ii = chunks.length; i < ii; i += 2) {
       const text = chunks[i];
       if (text === '\n') {
@@ -527,14 +527,14 @@ class Executor {
    * @return {boolean} The image or label was rendered.
    */
   private replayImageOrLabel_(
-    context,
-    contextScale,
-    imageOrLabel,
-    dimensions,
-    opacity,
-    fillInstruction,
-    strokeInstruction
-  ) {
+    context: CanvasRenderingContext2D,
+    contextScale: number,
+    imageOrLabel: Label | HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
+    dimensions: ImageOrLabelDimensions,
+    opacity: number,
+    fillInstruction: any[],
+    strokeInstruction: any[]
+  ): boolean {
     const fillStroke = !!(fillInstruction || strokeInstruction);
 
     const box = dimensions.declutterBox;
@@ -581,7 +581,7 @@ class Executor {
    * @private
    * @param {CanvasRenderingContext2D} context Context.
    */
-  private fill_(context) {
+  private fill_(context: CanvasRenderingContext2D): void {
     if (this.alignFill_) {
       const origin = applyTransform(this.renderedTransform_, [0, 0]);
       const repeatSize = 512 * this.pixelRatio;
@@ -600,7 +600,7 @@ class Executor {
    * @param {CanvasRenderingContext2D} context Context.
    * @param {Array<*>} instruction Instruction.
    */
-  private setStrokeStyle_(context, instruction) {
+  private setStrokeStyle_(context: CanvasRenderingContext2D, instruction: any[]): void {
     context['strokeStyle'] =
       /** @type {import("../../colorlike").ColorLike} */ (instruction[1]);
     context.lineWidth = /** @type {number} */ (instruction[2]);
@@ -619,7 +619,7 @@ class Executor {
    * @param {string} fillKey The key for the fill state.
    * @return {{label: import("../canvas").Label, anchorX: number, anchorY: number}} The text image and its anchor.
    */
-  private drawLabelWithPointPlacement_(text, textKey, strokeKey, fillKey) {
+  private drawLabelWithPointPlacement_(text: string | string[], textKey: string, strokeKey: string, fillKey: string): { label: Label; anchorX: number; anchorY: number } {
     const textState = this.textStates[textKey];
 
     const label = this.createLabel(text, textKey, fillKey, strokeKey);
@@ -662,13 +662,13 @@ class Executor {
    * @return {T|undefined} Callback result.
    * @template T
    */
-  private execute_(
+  private execute_<T>(
     context: CanvasRenderingContext2D,
     contextScale: number,
     transform: Transform,
     instructions: any[],
     snapToPixel: boolean,
-    featureCallback?: FeatureCallback,
+    featureCallback?: FeatureCallback<T>,
     hitExtent?: Extent,
     declutterTree?: RBush_<any>
   ): any {
@@ -694,17 +694,17 @@ class Executor {
     const ii = instructions.length; // end of instructions
     let d = 0; // data index
     let dd; // end of per-instruction data
-    let anchorX,
-      anchorY,
-      prevX,
-      prevY,
-      roundX,
-      roundY,
-      image,
+    let anchorX: number,
+      anchorY: number,
+      prevX: number,
+      prevY: number,
+      roundX: number,
+      roundY: number,
+      image: Label,
       text,
-      textKey,
-      strokeKey,
-      fillKey;
+      textKey: string,
+      strokeKey: string,
+      fillKey: string;
     let pendingFill = 0;
     let pendingStroke = 0;
     let lastFillInstruction = null;
@@ -1261,13 +1261,13 @@ class Executor {
    * @return {T|undefined} Callback result.
    * @template T
    */
-  public executeHitDetection(
+  public executeHitDetection<T>(
     context: CanvasRenderingContext2D,
     transform: Transform,
     viewRotation: number,
-    featureCallback?: FeatureCallback,
+    featureCallback?: FeatureCallback<T>,
     hitExtent?: Extent
-  ): any {
+  ): T | undefined {
     this.viewRotation_ = viewRotation;
     return this.execute_(
       context,

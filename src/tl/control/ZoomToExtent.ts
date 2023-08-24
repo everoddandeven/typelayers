@@ -6,6 +6,7 @@ import EventType from '../events/EventType';
 import {CLASS_CONTROL, CLASS_UNSELECTABLE} from '../css';
 import {fromExtent as polygonFromExtent} from '../geom/Polygon';
 import {Extent} from "../extent/Extent";
+import MapEvent from '../MapEvent';
 
 export interface ZoomToExtentOptions {
   className?: string;
@@ -23,6 +24,7 @@ export interface ZoomToExtentOptions {
  * @api
  */
 class ZoomToExtent extends Control {
+
   /**
    * @param {Options} [options] Options.
    */
@@ -89,6 +91,8 @@ class ZoomToExtent extends Control {
       : this.extent;
     view.fitInternal(polygonFromExtent(extent));
   }
+
+  public render(mapEvent: MapEvent): void { }
 }
 
 export default ZoomToExtent;

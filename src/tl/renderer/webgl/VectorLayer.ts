@@ -31,12 +31,13 @@ export const Uniforms = {
  * @typedef {import('../../render/webgl/VectorStyleRenderer').VectorStyle} VectorStyle
  */
 
-/**
- * @typedef {Object} Options
- * @property {string} [className='tl-layer'] A CSS class name to set to the canvas element.
- * @property {VectorStyle|Array<VectorStyle>} style Vector style as literal style or shaders; can also accept an array of styles
- * @property {Array<import("./Layer").PostProcessesOptions>} [postProcesses] Post-processes definitions
- */
+export type VectorStyle = VectorStyleRenderer;
+
+interface WebGLVectorLayerRendererOptions {
+  className?: string;
+  style: VectorStyle | Array<VectorStyle>;
+  postProcesses?: Array<import("./Layer").PostProcessesOptions>;
+}
 
 /**
  * @classdesc

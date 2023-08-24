@@ -46,6 +46,7 @@ import {warn} from './console';
 import RBush from "rbush";
 import Source from "./source/Source";
 import {Pixel} from "./pixel";
+import {Coordinate} from "./coordinate";
 
 
 export interface FrameState {
@@ -797,7 +798,7 @@ class Map extends BaseObject {
    * @param {MouseEvent} event Event.
    * @return {import("./coordinate").Coordinate} Coordinate.
    */
-  getEventCoordinateInternal(event) {
+  getEventCoordinateInternal(event: MouseEvent): Coordinate {
     return this.getCoordinateFromPixelInternal(this.getEventPixel(event));
   }
 

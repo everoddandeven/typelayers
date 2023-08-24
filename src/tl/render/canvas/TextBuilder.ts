@@ -5,6 +5,7 @@ import CanvasBuilder from './Builder';
 import CanvasInstruction from './Instruction';
 import {asColorLike} from '../../colorlike';
 import {
+  DeclutterImageWithText,
   defaultFillStyle,
   defaultFont,
   defaultLineCap,
@@ -16,18 +17,32 @@ import {
   defaultPadding,
   defaultStrokeStyle,
   defaultTextAlign,
-  defaultTextBaseline,
-  registerFont,
+  defaultTextBaseline, FillState,
+  registerFont, SerializableInstructions, StrokeState, TextState,
 } from '../canvas';
 import {getUid} from '../../util';
-import {intersects} from '../../extent';
+import {Extent, intersects} from '../../extent';
 import {lineChunk} from '../../geom/flat/linechunk';
 import {matchingChunk} from '../../geom/flat/straightchunk';
+import {Circle, LineString, MultiLineString, MultiPolygon, Polygon, SimpleGeometry} from "../../geom";
+import RenderFeature from "../Feature";
+import {FeatureLike} from "../../Feature";
+import {Text} from "../../style";
 /**
  * @const
  * @type {{left: 0, center: 0.5, right: 1, top: 0, middle: 0.5, hanging: 0.2, alphabetic: 0.8, ideographic: 0.8, bottom: 1}}
  */
-export const TEXT_ALIGN = {
+export const TEXT_ALIGN: {
+  'left': 0,
+  'center': 0.5,
+  'right': 1,
+  'top': 0,
+  'middle': 0.5,
+  'hanging': 0.2,
+  'alphabetic': 0.8,
+  'ideographic': 0.8,
+  'bottom': 1,
+} = {
   'left': 0,
   'center': 0.5,
   'right': 1,
@@ -40,13 +55,31 @@ export const TEXT_ALIGN = {
 };
 
 class CanvasTextBuilder extends CanvasBuilder {
+  private labels_: HTMLCanvasElement[];
+  private text_: string | string[];
+  private textOffsetX_: number;
+  private textOffsetY_: number;
+  private textRotateWithView_: boolean | undefined;
+  private textRotation_: number;
+  private textFillState_: FillState;
+  private fillStates: { [key: string]: FillState };
+  private textStrokeState_: StrokeState;
+  private strokeStates: { [key: string]: StrokeState};
+  private textState_: TextState;
+  private textKey_: string;
+  private fillKey_: string;
+  private strokeKey_: string;
+  private declutterImageWithText_: DeclutterImageWithText;
+
+  public textStates: {[key: string]: TextState};
+
   /**
    * @param {number} tolerance Tolerance.
    * @param {import("../../extent").Extent} maxExtent Maximum extent.
    * @param {number} resolution Resolution.
    * @param {number} pixelRatio Pixel ratio.
    */
-  constructor(tolerance, maxExtent, resolution, pixelRatio) {
+  constructor(tolerance: number, maxExtent: Extent, resolution: number, pixelRatio: number) {
     super(tolerance, maxExtent, resolution, pixelRatio);
 
     /**
@@ -112,7 +145,7 @@ class CanvasTextBuilder extends CanvasBuilder {
      * @private
      * @type {import("../canvas").TextState}
      */
-    this.textState_ = /** @type {import("../canvas").TextState} */ ({});
+    this.textState_ = /** @type {import("../canvas").TextState} */ (<TextState>{});
 
     /**
      * @type {!Object<string, import("../canvas").TextState>}
@@ -148,7 +181,7 @@ class CanvasTextBuilder extends CanvasBuilder {
   /**
    * @return {import("../canvas").SerializableInstructions} the serializable instructions.
    */
-  finish() {
+  public finish(): SerializableInstructions {
     const instructions = super.finish();
     instructions.textStates = this.textStates;
     instructions.fillStates = this.fillStates;
@@ -160,7 +193,7 @@ class CanvasTextBuilder extends CanvasBuilder {
    * @param {import("../../geom/SimpleGeometry").default|import("../Feature").default} geometry Geometry.
    * @param {import("../../Feature").FeatureLike} feature Feature.
    */
-  drawText(geometry, feature) {
+  public drawText(geometry: SimpleGeometry | RenderFeature, feature: FeatureLike): void {
     const fillState = this.textFillState_;
     const strokeState = this.textStrokeState_;
     const textState = this.textState_;
@@ -190,16 +223,16 @@ class CanvasTextBuilder extends CanvasBuilder {
       if (geometryType == 'LineString') {
         ends = [flatCoordinates.length];
       } else if (geometryType == 'MultiLineString') {
-        ends = /** @type {import("../../geom/MultiLineString").default} */ (
+        ends = /** @type {import("../../geom/MultiLineString").default} */ (<MultiLineString>
           geometry
         ).getEnds();
       } else if (geometryType == 'Polygon') {
-        ends = /** @type {import("../../geom/Polygon").default} */ (geometry)
+        ends = /** @type {import("../../geom/Polygon").default} */ (<Polygon>geometry)
           .getEnds()
           .slice(0, 1);
       } else if (geometryType == 'MultiPolygon') {
         const endss =
-          /** @type {import("../../geom/MultiPolygon").default} */ (
+          /** @type {import("../../geom/MultiPolygon").default} */ (<MultiPolygon>
             geometry
           ).getEndss();
         ends = [];
@@ -262,26 +295,26 @@ class CanvasTextBuilder extends CanvasBuilder {
           break;
         case 'LineString':
           flatCoordinates =
-            /** @type {import("../../geom/LineString").default} */ (
+            /** @type {import("../../geom/LineString").default} */ (<LineString>
               geometry
             ).getFlatMidpoint();
           break;
         case 'Circle':
           flatCoordinates =
-            /** @type {import("../../geom/Circle").default} */ (
+            /** @type {import("../../geom/Circle").default} */ (<Circle>
               geometry
             ).getCenter();
           break;
         case 'MultiLineString':
           flatCoordinates =
-            /** @type {import("../../geom/MultiLineString").default} */ (
+            /** @type {import("../../geom/MultiLineString").default} */ (<MultiLineString>
               geometry
             ).getFlatMidpoints();
           stride = 2;
           break;
         case 'Polygon':
           flatCoordinates =
-            /** @type {import("../../geom/Polygon").default} */ (
+            /** @type {import("../../geom/Polygon").default} */ (<Polygon>
               geometry
             ).getFlatInteriorPoint();
           if (!textState.overflow) {
@@ -291,7 +324,7 @@ class CanvasTextBuilder extends CanvasBuilder {
           break;
         case 'MultiPolygon':
           const interiorPoints =
-            /** @type {import("../../geom/MultiPolygon").default} */ (
+            /** @type {import("../../geom/MultiPolygon").default} */ (<MultiPolygon>
               geometry
             ).getFlatInteriorPoints();
           flatCoordinates = [];
@@ -367,7 +400,7 @@ class CanvasTextBuilder extends CanvasBuilder {
         padding = [p0, p1, p2, p3];
       }
 
-      // The image is unknown at this stage so we pass null; it will be computed at render time.
+      // The image is unknown at this stage so, we pass null; it will be computed at render time.
       // For clarity, we pass NaN for offsetX, offsetY, width and height, which will be computed at
       // render time.
       const pixelRatio = this.pixelRatio;
@@ -451,7 +484,7 @@ class CanvasTextBuilder extends CanvasBuilder {
   /**
    * @private
    */
-  saveTextStates_() {
+  private saveTextStates_(): void {
     const strokeState = this.textStrokeState_;
     const textState = this.textState_;
     const fillState = this.textFillState_;
@@ -495,7 +528,7 @@ class CanvasTextBuilder extends CanvasBuilder {
    * @param {number} begin Begin.
    * @param {number} end End.
    */
-  drawChars_(begin, end) {
+  private drawChars_(begin: number, end: number): void {
     const strokeState = this.textStrokeState_;
     const textState = this.textState_;
 
@@ -551,8 +584,8 @@ class CanvasTextBuilder extends CanvasBuilder {
    * @param {import("../../style/Text").default} textStyle Text style.
    * @param {Object} [sharedData] Shared data.
    */
-  setTextStyle(textStyle, sharedData) {
-    let textState, fillState, strokeState;
+  public setTextStyle(textStyle: Text, sharedData?: {[key: number]: any}): void {
+    let textState: TextState, fillState: FillState, strokeState: StrokeState;
     if (!textStyle) {
       this.text_ = '';
     } else {
@@ -563,7 +596,7 @@ class CanvasTextBuilder extends CanvasBuilder {
       } else {
         fillState = this.textFillState_;
         if (!fillState) {
-          fillState = /** @type {import("../canvas").FillState} */ ({});
+          fillState = /** @type {import("../canvas").FillState} */ (<FillState>{});
           this.textFillState_ = fillState;
         }
         fillState.fillStyle = asColorLike(
@@ -578,7 +611,7 @@ class CanvasTextBuilder extends CanvasBuilder {
       } else {
         strokeState = this.textStrokeState_;
         if (!strokeState) {
-          strokeState = /** @type {import("../canvas").StrokeState} */ ({});
+          strokeState = /** @type {import("../canvas").StrokeState} */ (<StrokeState>{});
           this.textStrokeState_ = strokeState;
         }
         const lineDash = textStrokeStyle.getLineDash();

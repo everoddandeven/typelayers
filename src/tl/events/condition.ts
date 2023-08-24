@@ -7,13 +7,6 @@ import {MAC, WEBKIT} from '../has';
 import {assert} from '../asserts';
 import {MapBrowserEvent} from "../index";
 
-/**
- * A function that takes an {@link module:tl/MapBrowserEvent~MapBrowserEvent} and returns a
- * `{boolean}`. If the condition is met, true should be returned.
- *
- * @typedef {function(this: ?, import("../MapBrowserEvent").default): boolean} Condition
- */
-
 export type Condition = (event: MapBrowserEvent) => boolean;
 
 /**
@@ -21,7 +14,7 @@ export type Condition = (event: MapBrowserEvent) => boolean;
  * @param {...Condition} var_args Conditions to check.
  * @return {Condition} Condition function.
  */
-export function all(var_args) {
+export function all(var_args: any): Condition {
   const conditions: IArguments = arguments;
   /**
    * @param {import("../MapBrowserEvent").default} event Event.
@@ -183,7 +176,7 @@ export const doubleClick = function (mapBrowserEvent: MapBrowserEvent): boolean 
  * pressed.
  *
  * @param {import("../MapBrowserEvent").default} mapBrowserEvent Map browser event.
- * @return {boolean} True only if there no modifier keys are pressed.
+ * @return {boolean} True only if there's no modifier keys are pressed.
  * @api
  */
 export const noModifierKeys = function (mapBrowserEvent: MapBrowserEvent): boolean {

@@ -3,40 +3,29 @@
  */
 
 import XYZ from './XYZ';
+import {NearestDirectionFunction} from "../array";
+import {ProjectionLike} from "../proj";
+import {AttributionLike} from "./Source";
 
-/**
- * @typedef {Object} Options
- * @property {import("./Source").AttributionLike} [attributions] Attributions.
- * @property {number} [cacheSize] Initial tile cache size. Will auto-grow to hold at least the number of tiles in the viewport.
- * @property {null|string} [crossOrigin] The `crossOrigin` attribute for loaded images.  Note that
- * you must provide a `crossOrigin` value if you want to access pixel data with the Canvas renderer.
- * See https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image for more detail.
- * @property {import("../proj").ProjectionLike} [projection='EPSG:3857'] Projection.
- * @property {number} [maxZoom=18] Max zoom.
- * @property {number} [minZoom] Minimum zoom.
- * @property {boolean} [wrapX=true] Whether to wrap the world horizontally.
- * @property {Object} [config] If using anonymous maps, the CartoDB config to use. See
- * https://carto.com/developers/maps-api/guides/anonymous-maps/
- * for more detail.
- * If using named maps, a key-value lookup with the template parameters.
- * See https://carto.com/developers/maps-api/guides/named-maps/
- * for more detail.
- * @property {string} [map] If using named maps, this will be the name of the template to load.
- * See https://carto.com/developers/maps-api/guides/named-maps/
- * for more detail.
- * @property {string} [account] Username as used to access public Carto dashboard at https://{username}.carto.com/.
- * @property {number} [transition=250] Duration of the opacity transition for rendering.
- * To disable the opacity transition, pass `transition: 0`.
- * @property {number|import("../array").NearestDirectionFunction} [zDirection=0]
- * Choose whether to use tiles with a higher or lower zoom level when between integer
- * zoom levels. See {@link module:tl/tilegrid/TileGrid~TileGrid#getZForResolution}.
- */
+export interface CartoDBOptions {
+  attributions?: AttributionLike;
+  cacheSize?: number;
+  crossOrigin?: null | string;
+  projection?: ProjectionLike;
+  maxZoom?: number;
+  minZoom?: number;
+  wrapX?: boolean;
+  config?: {[key: string]: any};
+  map?: string;
+  account?: string;
+  transition?: number;
+  zDirection?: number | NearestDirectionFunction;
+}
 
-/**
- * @typedef {Object} CartoDBLayerInfo
- * @property {string} layergroupid The layer group ID
- * @property {{https: string}} cdn_url The CDN URL
- */
+export interface CartoDBLayerInfo {
+  layergroupid: string;
+  cdn_url: { https: string; };
+}
 
 /**
  * @classdesc
@@ -44,10 +33,14 @@ import XYZ from './XYZ';
  * @api
  */
 class CartoDB extends XYZ {
+  private account_: string;
+  private mapId_: string;
+  private config_: {[key: string]: any};
+  private templateCache_: {[key: string]: CartoDBLayerInfo};
   /**
    * @param {Options} options CartoDB options.
    */
-  constructor(options) {
+  constructor(options: CartoDBOptions) {
     super({
       attributions: options.attributions,
       cacheSize: options.cacheSize,
@@ -92,7 +85,7 @@ class CartoDB extends XYZ {
    * @return {!Object} The current configuration.
    * @api
    */
-  getConfig() {
+  public getConfig(): {[key: string]: any } {
     return this.config_;
   }
 
@@ -102,7 +95,7 @@ class CartoDB extends XYZ {
    *     in the config.
    * @api
    */
-  updateConfig(config) {
+  public updateConfig(config: {[key: string]: any }): void {
     Object.assign(this.config_, config);
     this.initializeMap_();
   }
@@ -114,7 +107,7 @@ class CartoDB extends XYZ {
    * If using named maps, a key-value lookup with the template parameters.
    * @api
    */
-  setConfig(config) {
+  public setConfig(config: {[key: string]: any }): void {
     this.config_ = config || {};
     this.initializeMap_();
   }
@@ -123,7 +116,7 @@ class CartoDB extends XYZ {
    * Issue a request to initialize the CartoDB map.
    * @private
    */
-  initializeMap_() {
+  private initializeMap_(): void {
     const paramHash = JSON.stringify(this.config_);
     if (this.templateCache_[paramHash]) {
       this.applyTemplate_(this.templateCache_[paramHash]);
@@ -153,8 +146,8 @@ class CartoDB extends XYZ {
    * @param {Event} event Event.
    * @private
    */
-  handleInitResponse_(paramHash, event) {
-    const client = /** @type {XMLHttpRequest} */ (event.target);
+  private handleInitResponse_(paramHash: string, event: Event): void {
+    const client = /** @type {XMLHttpRequest} */ (<XMLHttpRequest>event.target);
     // status will be 0 for file:// urls
     if (!client.status || (client.status >= 200 && client.status < 300)) {
       let response;
@@ -178,7 +171,7 @@ class CartoDB extends XYZ {
    * @private
    * @param {Event} event Event.
    */
-  handleInitError_(event) {
+  private handleInitError_(event: Event): void {
     this.setState('error');
   }
 
@@ -187,7 +180,7 @@ class CartoDB extends XYZ {
    * @param {CartoDBLayerInfo} data Result of carto db call.
    * @private
    */
-  applyTemplate_(data) {
+  private applyTemplate_(data: CartoDBLayerInfo): void {
     const tilesUrl =
       'https://' +
       data.cdn_url.https +

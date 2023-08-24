@@ -7,6 +7,7 @@ import {CLASS_COLLAPSED, CLASS_CONTROL, CLASS_UNSELECTABLE} from '../css';
 import {equals} from '../array';
 import {removeChildren, replaceNode} from '../dom';
 import MapEvent from "../MapEvent";
+import {FrameState} from "../Map";
 
 export interface AttributionOptions {
   className?: string;
@@ -25,7 +26,7 @@ export interface AttributionOptions {
  * @classdesc
  * Control to show all the attributions associated with the layer sources
  * in the map. This control is one of the default controls included in maps.
- * By default it will show in the bottom right portion of the map, but this can
+ * By default, it will show in the bottom right portion of the map, but this can
  * be changed by using a css selector for `.tl-attribution`.
  *
  * @api
@@ -188,7 +189,7 @@ class Attribution extends Control {
    * @return {Array<string>} Attributions.
    * @private
    */
-  private collectSourceAttributions_(frameState): string[] {
+  private collectSourceAttributions_(frameState: FrameState): string[] {
     const visibleAttributions = Array.from(
       new Set(
         this.getMap()
@@ -214,7 +215,7 @@ class Attribution extends Control {
    * @private
    * @param {?import("../Map").FrameState} frameState Frame state.
    */
-  updateElement_(frameState) {
+  private updateElement_(frameState: FrameState): void {
     if (!frameState) {
       if (this.renderedVisible_) {
         this.element.style.display = 'none';
@@ -260,7 +261,7 @@ class Attribution extends Control {
   /**
    * @private
    */
-  handleToggle_(): void {
+  private handleToggle_(): void {
     this.element.classList.toggle(CLASS_COLLAPSED);
     if (this.collapsed_) {
       replaceNode(this.collapseLabel_, this.label_);

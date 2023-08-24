@@ -37,7 +37,7 @@ class IconImage extends EventTarget {
    * @param {import("../color").Color} color Color.
    */
   constructor(
-      image: HTMLImageElement,
+      image: HTMLImageElement | HTMLCanvasElement,
       src: string,
       size: Size,
       crossOrigin: string,
@@ -109,7 +109,7 @@ class IconImage extends EventTarget {
   /**
    * @private
    */
-  initializeImage_() {
+  private initializeImage_(): void {
     this.image_ = new Image();
     if (this.crossOrigin_ !== null) {
       this.image_.crossOrigin = this.crossOrigin_;
@@ -120,7 +120,7 @@ class IconImage extends EventTarget {
    * @private
    * @return {boolean} The image canvas is tainted.
    */
-  isTainted_() {
+  private isTainted_(): boolean {
     if (this.tainted_ === undefined && this.imageState_ === ImageState.LOADED) {
       if (!taintedTestContext) {
         taintedTestContext = <CanvasRenderingContext2D>createCanvasContext2D(1, 1, undefined, {
@@ -142,14 +142,14 @@ class IconImage extends EventTarget {
   /**
    * @private
    */
-  dispatchChangeEvent_() {
+  private dispatchChangeEvent_(): void {
     this.dispatchEvent(EventType.CHANGE);
   }
 
   /**
    * @private
    */
-  handleImageError_() {
+  private handleImageError_(): void {
     this.imageState_ = ImageState.ERROR;
     this.unlistenImage_();
     this.dispatchChangeEvent_();
@@ -158,7 +158,7 @@ class IconImage extends EventTarget {
   /**
    * @private
    */
-  handleImageLoad_() {
+  private handleImageLoad_(): void {
     this.imageState_ = ImageState.LOADED;
     if (this.size_) {
       this.image_.width = this.size_[0];
@@ -174,7 +174,7 @@ class IconImage extends EventTarget {
    * @param {number} pixelRatio Pixel ratio.
    * @return {HTMLImageElement|HTMLCanvasElement} Image or Canvas element.
    */
-  getImage(pixelRatio) {
+  public getImage(pixelRatio: number): HTMLImageElement | HTMLCanvasElement {
     if (!this.image_) {
       this.initializeImage_();
     }
@@ -186,7 +186,7 @@ class IconImage extends EventTarget {
    * @param {number} pixelRatio Pixel ratio.
    * @return {number} Image or Canvas element.
    */
-  getPixelRatio(pixelRatio) {
+  public getPixelRatio(pixelRatio: number): number {
     this.replaceColor_(pixelRatio);
     return this.canvas_[pixelRatio] ? pixelRatio : 1;
   }
@@ -194,14 +194,14 @@ class IconImage extends EventTarget {
   /**
    * @return {import("../ImageState").default} Image state.
    */
-  getImageState() {
+  public getImageState(): ImageState {
     return this.imageState_;
   }
 
   /**
    * @return {HTMLImageElement|HTMLCanvasElement} Image element.
    */
-  getHitDetectionImage() {
+  public getHitDetectionImage(): HTMLImageElement | HTMLCanvasElement {
     if (!this.image_) {
       this.initializeImage_();
     }
@@ -223,21 +223,21 @@ class IconImage extends EventTarget {
    * Get the size of the icon (in pixels).
    * @return {import("../size").Size} Image size.
    */
-  getSize() {
+  public getSize(): Size {
     return this.size_;
   }
 
   /**
    * @return {string|undefined} Image src.
    */
-  getSrc() {
+  public getSrc(): string {
     return this.src_;
   }
 
   /**
    * Load not yet loaded URI.
    */
-  load() {
+  public load(): void {
     if (this.imageState_ !== ImageState.IDLE) {
       return;
     }
@@ -262,7 +262,7 @@ class IconImage extends EventTarget {
    * @param {number} pixelRatio Pixel ratio.
    * @private
    */
-  replaceColor_(pixelRatio) {
+  private replaceColor_(pixelRatio: number): void {
     if (
       !this.color_ ||
       this.canvas_[pixelRatio] ||
@@ -295,7 +295,7 @@ class IconImage extends EventTarget {
    *
    * @private
    */
-  unlistenImage_() {
+  private unlistenImage_(): void {
     if (this.unlisten_) {
       this.unlisten_();
       this.unlisten_ = null;
@@ -312,7 +312,7 @@ class IconImage extends EventTarget {
  * @param {import("../color").Color} color Color.
  * @return {IconImage} Icon image.
  */
-export function get(image, src, size, crossOrigin, imageState, color) {
+export function get(image: HTMLImageElement | HTMLCanvasElement, src: string, size: Size, crossOrigin: string, imageState: ImageState, color: Color): IconImage {
   let iconImage = iconImageCache.get(src, crossOrigin, color);
   if (!iconImage) {
     iconImage = new IconImage(image, src, size, crossOrigin, imageState, color);

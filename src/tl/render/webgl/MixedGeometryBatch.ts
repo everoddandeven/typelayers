@@ -3,53 +3,49 @@
  */
 import {getUid} from '../../util';
 import {linearRingIsClockwise} from '../../geom/flat/orient';
+import RenderFeature from "../Feature";
+import Feature from "../../Feature";
+import {
+  Geometry,
+  MultiPolygon,
+  MultiLineString,
+  GeometryCollection,
+  GeometryType,
+  MultiPoint,
+  Polygon,
+  LineString,
+  Point,
+  LinearRing
+} from "../../geom";
+import {FlatCoordinates} from "../../coordinate";
 
-/**
- * @typedef {import("../Feature").default} RenderFeature
- */
-/**
- * @typedef {import("../../Feature").default} Feature
- */
-/**
- * @typedef {import("../../geom/Geometry").Type} GeometryType
- */
+export interface GeometryBatchItem {
+  feature: Feature | RenderFeature;
+  flatCoordss: number[][];
+  verticesCount?: number;
+  ringsCount?: number;
+  ringsVerticesCounts?: number[][];
+}
 
-/**
- * @typedef {Object} GeometryBatchItem Object that holds a reference to a feature as well as the raw coordinates of its various geometries
- * @property {Feature|RenderFeature} feature Feature
- * @property {Array<Array<number>>} flatCoordss Array of flat coordinates arrays, one for each geometry related to the feature
- * @property {number} [verticesCount] Only defined for linestring and polygon batches
- * @property {number} [ringsCount] Only defined for polygon batches
- * @property {Array<Array<number>>} [ringsVerticesCounts] Array of vertices counts in each ring for each geometry; only defined for polygons batches
- */
+export type GeometryBatch = PointGeometryBatch | LineStringGeometryBatch | PolygonGeometryBatch;
 
-/**
- * @typedef {PointGeometryBatch|LineStringGeometryBatch|PolygonGeometryBatch} GeometryBatch
- */
+export interface PolygonGeometryBatch {
+    entries: {[key: string]: GeometryBatchItem};
+    geometriesCount: number;
+    verticesCount: number;
+    ringsCount: number;
+}
 
-/**
- * @typedef {Object} PolygonGeometryBatch A geometry batch specific to polygons
- * @property {Object<string, GeometryBatchItem>} entries Dictionary of all entries in the batch with associated computed values.
- * One entry corresponds to one feature. Key is feature uid.
- * @property {number} geometriesCount Amount of geometries in the batch.
- * @property {number} verticesCount Amount of vertices from geometries in the batch.
- * @property {number} ringsCount How many outer and inner rings in this batch.
- */
+export interface LineStringGeometryBatch {
+    entries: {[key: string]: GeometryBatchItem};
+    geometriesCount: number;
+    verticesCount: number;
+}
 
-/**
- * @typedef {Object} LineStringGeometryBatch A geometry batch specific to lines
- * @property {Object<string, GeometryBatchItem>} entries Dictionary of all entries in the batch with associated computed values.
- * One entry corresponds to one feature. Key is feature uid.
- * @property {number} geometriesCount Amount of geometries in the batch.
- * @property {number} verticesCount Amount of vertices from geometries in the batch.
- */
-
-/**
- * @typedef {Object} PointGeometryBatch A geometry batch specific to points
- * @property {Object<string, GeometryBatchItem>} entries Dictionary of all entries in the batch with associated computed values.
- * One entry corresponds to one feature. Key is feature uid.
- * @property {number} geometriesCount Amount of geometries in the batch.
- */
+export interface PointGeometryBatch {
+    entries: {[key: string]: GeometryBatchItem};
+    geometriesCount: number;
+}
 
 /**
  * @classdesc This class is used to group several geometries of various types together for faster rendering.
@@ -71,6 +67,9 @@ import {linearRingIsClockwise} from '../../geom/flat/orient';
  * the WebGL buffers.
  */
 class MixedGeometryBatch {
+  public polygonBatch: { verticesCount: number; entries: {}; geometriesCount: number; ringsCount: number };
+  public pointBatch: { entries: {}; geometriesCount: number };
+  public lineStringBatch: { verticesCount: number; entries: {}; geometriesCount: number };
   constructor() {
     /**
      * @type {PolygonGeometryBatch}
@@ -103,7 +102,7 @@ class MixedGeometryBatch {
   /**
    * @param {Array<Feature|RenderFeature>} features Array of features to add to the batch
    */
-  addFeatures(features) {
+  public addFeatures(features: Feature[] | RenderFeature[]): void {
     for (let i = 0; i < features.length; i++) {
       this.addFeature(features[i]);
     }
@@ -112,7 +111,7 @@ class MixedGeometryBatch {
   /**
    * @param {Feature|RenderFeature} feature Feature to add to the batch
    */
-  addFeature(feature) {
+  public addFeature(feature: Feature | RenderFeature): void {
     const geometry = feature.getGeometry();
     if (!geometry) {
       return;
@@ -124,7 +123,7 @@ class MixedGeometryBatch {
    * @param {Feature|RenderFeature} feature Feature
    * @private
    */
-  clearFeatureEntryInPointBatch_(feature) {
+  private clearFeatureEntryInPointBatch_(feature: Feature | RenderFeature): void {
     const entry = this.pointBatch.entries[getUid(feature)];
     if (!entry) {
       return;
@@ -137,7 +136,7 @@ class MixedGeometryBatch {
    * @param {Feature|RenderFeature} feature Feature
    * @private
    */
-  clearFeatureEntryInLineStringBatch_(feature) {
+  private clearFeatureEntryInLineStringBatch_(feature: Feature | RenderFeature): void {
     const entry = this.lineStringBatch.entries[getUid(feature)];
     if (!entry) {
       return;
@@ -151,7 +150,7 @@ class MixedGeometryBatch {
    * @param {Feature|RenderFeature} feature Feature
    * @private
    */
-  clearFeatureEntryInPolygonBatch_(feature) {
+  private clearFeatureEntryInPolygonBatch_(feature: Feature | RenderFeature): void {
     const entry = this.polygonBatch.entries[getUid(feature)];
     if (!entry) {
       return;
@@ -167,23 +166,18 @@ class MixedGeometryBatch {
    * @param {Feature|RenderFeature} feature Feature
    * @private
    */
-  addGeometry_(geometry, feature) {
-    const type = geometry.getType();
+  private addGeometry_(geometry: Geometry | RenderFeature, feature: Feature | RenderFeature): void {
+    const type: GeometryType = geometry.getType();
+
     switch (type) {
       case 'GeometryCollection':
-        const geometries =
-          /** @type {import("../../geom").GeometryCollection} */ (
-            geometry
-          ).getGeometriesArray();
+        const geometries = (<GeometryCollection>geometry).getGeometriesArray();
         for (const geometry of geometries) {
           this.addGeometry_(geometry, feature);
         }
         break;
       case 'MultiPolygon':
-        const multiPolygonGeom =
-          /** @type {import("../../geom").MultiPolygon|RenderFeature} */ (
-            geometry
-          );
+        const multiPolygonGeom = (<MultiPolygon>geometry);
         this.addCoordinates_(
           type,
           multiPolygonGeom.getFlatCoordinates(),
@@ -194,7 +188,7 @@ class MixedGeometryBatch {
         break;
       case 'MultiLineString':
         const multiLineGeom =
-          /** @type {import("../../geom").MultiLineString|RenderFeature} */ (
+          <MultiLineString> (
             geometry
           );
         this.addCoordinates_(
@@ -206,10 +200,7 @@ class MixedGeometryBatch {
         );
         break;
       case 'MultiPoint':
-        const multiPointGeom =
-          /** @type {import("../../geom").MultiPoint|RenderFeature} */ (
-            geometry
-          );
+        const multiPointGeom = <MultiPoint>geometry;
         this.addCoordinates_(
           type,
           multiPointGeom.getFlatCoordinates(),
@@ -219,8 +210,7 @@ class MixedGeometryBatch {
         );
         break;
       case 'Polygon':
-        const polygonGeom =
-          /** @type {import("../../geom").Polygon|RenderFeature} */ (geometry);
+        const polygonGeom = <Polygon> (geometry);
         this.addCoordinates_(
           type,
           polygonGeom.getFlatCoordinates(),
@@ -230,7 +220,7 @@ class MixedGeometryBatch {
         );
         break;
       case 'Point':
-        const pointGeom = /** @type {import("../../geom").Point} */ (geometry);
+        const pointGeom = <Point> (geometry);
         this.addCoordinates_(
           type,
           pointGeom.getFlatCoordinates(),
@@ -240,13 +230,16 @@ class MixedGeometryBatch {
         );
         break;
       case 'LineString':
-      case 'LinearRing':
-        const lineGeom = /** @type {import("../../geom").LineString} */ (
-          geometry
+        const lineGeom = <LineString> (geometry);
+        this.addCoordinates_(
+            type, lineGeom.getFlatCoordinates(), null, feature, getUid(feature)
         );
+        break;
+      case 'LinearRing':
+        const linearGeom = <LinearRing> (geometry);
         this.addCoordinates_(
           type,
-          lineGeom.getFlatCoordinates(),
+          linearGeom.getFlatCoordinates(),
           null,
           feature,
           getUid(feature)
@@ -265,12 +258,12 @@ class MixedGeometryBatch {
    * @param {string} featureUid Feature uid
    * @private
    */
-  addCoordinates_(type, flatCoords, ends, feature, featureUid) {
+  private addCoordinates_(type: GeometryType, flatCoords: FlatCoordinates, ends: FlatCoordinates | FlatCoordinates[], feature: Feature | RenderFeature, featureUid: string): void {
     /** @type {number} */
-    let verticesCount;
+    let verticesCount: number;
     switch (type) {
       case 'MultiPolygon':
-        const multiPolygonEndss = /** @type {Array<Array<number>>} */ (ends);
+        const multiPolygonEndss = /** @type {Array<Array<number>>} */ (<FlatCoordinates[]>ends);
         for (let i = 0, ii = multiPolygonEndss.length; i < ii; i++) {
           let polygonEnds = multiPolygonEndss[i];
           const prevPolygonEnds = i > 0 ? multiPolygonEndss[i - 1] : null;
@@ -293,7 +286,7 @@ class MixedGeometryBatch {
         }
         break;
       case 'MultiLineString':
-        const multiLineEnds = /** @type {Array<number>} */ (ends);
+        const multiLineEnds = /** @type {Array<number>} */ (<FlatCoordinates>ends);
         for (let i = 0, ii = multiLineEnds.length; i < ii; i++) {
           const startIndex = i > 0 ? multiLineEnds[i - 1] : 0;
           const ringCoords = flatCoords.slice(startIndex, multiLineEnds[i]);
@@ -318,7 +311,7 @@ class MixedGeometryBatch {
         }
         break;
       case 'Polygon':
-        const polygonEnds = /** @type {Array<number>} */ (ends);
+        const polygonEnds = /** @type {Array<number>} */ (<FlatCoordinates>ends);
         // first look for a CW ring; if so, handle it and following rings as another polygon
         for (let i = 1, ii = polygonEnds.length; i < ii; i++) {
           const ringStartIndex = polygonEnds[i - 1];
@@ -353,8 +346,8 @@ class MixedGeometryBatch {
           };
         }
         verticesCount = flatCoords.length / 2;
-        const ringsCount = ends.length;
-        const ringsVerticesCount = ends.map((end, ind, arr) =>
+        const ringsCount = (<FlatCoordinates>ends).length;
+        const ringsVerticesCount = (<FlatCoordinates>ends).map((end: number, ind: number, arr: number[]): number =>
           ind > 0 ? (end - arr[ind - 1]) / 2 : end / 2
         );
         this.polygonBatch.verticesCount += verticesCount;
@@ -411,7 +404,7 @@ class MixedGeometryBatch {
   /**
    * @param {Feature|RenderFeature} feature Feature
    */
-  changeFeature(feature) {
+  public changeFeature(feature: Feature | RenderFeature): void {
     this.clearFeatureEntryInPointBatch_(feature);
     this.clearFeatureEntryInPolygonBatch_(feature);
     this.clearFeatureEntryInLineStringBatch_(feature);
@@ -425,13 +418,13 @@ class MixedGeometryBatch {
   /**
    * @param {Feature|RenderFeature} feature Feature
    */
-  removeFeature(feature) {
+  public removeFeature(feature: Feature | RenderFeature): void {
     this.clearFeatureEntryInPointBatch_(feature);
     this.clearFeatureEntryInPolygonBatch_(feature);
     this.clearFeatureEntryInLineStringBatch_(feature);
   }
 
-  clear() {
+  public clear(): void {
     this.polygonBatch.entries = {};
     this.polygonBatch.geometriesCount = 0;
     this.polygonBatch.verticesCount = 0;

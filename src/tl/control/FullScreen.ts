@@ -12,8 +12,9 @@ import BaseEvent from "../events/Event";
 import ObjectEventType from "../ObjectEventType";
 import {ObjectEvent} from "../Object";
 import Map from "../Map";
+import MapEvent from '../MapEvent';
 
-const events = [
+const events: string[] = [
   'fullscreenchange',
   'webkitfullscreenchange',
   'MSFullscreenChange',
@@ -38,19 +39,12 @@ export enum FullScreenEventType {
   LEAVEFULLSCREEN = 'leavefullscreen',
 }
 
-/***
- * @template Return
- * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes|
- *     'enterfullscreen'|'leavefullscreen', import("../events/Event").default, Return> &
- *   import("../Observable").OnSignature<import("../ObjectEventType").Types, import("../Object").ObjectEvent, Return> &
- *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|
- *     'enterfullscreen'|'leavefullscreen'|import("../ObjectEventType").Types, Return>} FullScreenOnSignature
- */
+export type FullScreenEventTypes = 'enterfullscreen' | 'leavefullscreen';
 
 export type FullScreenOnSignature<Return> =
-    OnSignature<EventTypes | FullScreenEventType, BaseEvent, Return> &
+    OnSignature<EventTypes | FullScreenEventTypes, BaseEvent, Return> &
     OnSignature<ObjectEventType, ObjectEvent, Return> &
-    CombinedOnSignature<EventTypes | FullScreenEventType, Return>;
+    CombinedOnSignature<EventTypes | FullScreenEventTypes, Return>;
 
 export interface FullScreenOptions {
   className?: string;
@@ -75,11 +69,12 @@ export interface FullScreenOptions {
  * The [Fullscreen API](https://www.w3.org/TR/fullscreen/) is used to
  * toggle the map in full screen mode.
  *
- * @fires FullScreenEventType#enterfullscreen
- * @fires FullScreenEventType#leavefullscreen
+ * @fires 'ENTERFULLSCREEN'
+ * @fires 'LEAVEFULLSCREEN'
  * @api
  */
 class FullScreen extends Control {
+
   /**
    * @param {Options} [options] Options.
    */
@@ -110,17 +105,17 @@ class FullScreen extends Control {
     /***
      * @type {FullScreenOnSignature<import("../events").EventsKey>}
      */
-    this.on;
+    this.on = null;
 
     /***
      * @type {FullScreenOnSignature<import("../events").EventsKey>}
      */
-    this.once;
+    this.once = null;
 
     /***
      * @type {FullScreenOnSignature<void>}
      */
-    this.un;
+    this.un = null;
 
     /**
      * @private
@@ -242,7 +237,7 @@ class FullScreen extends Control {
     if (isFullScreen(doc)) {
       exitFullScreen(doc);
     } else {
-      let element;
+      let element: HTMLElement;
       if (this.source_) {
         element =
           typeof this.source_ === 'string'
@@ -352,6 +347,8 @@ class FullScreen extends Control {
       this.handleFullScreenChange_();
     }
   }
+
+  public render(mapEvent: MapEvent): void { };
 }
 
 /**
@@ -377,10 +374,11 @@ function isFullScreen(doc: Document): boolean {
 /**
  * Request to fullscreen an element.
  * @param {HTMLElement} element Element to request fullscreen
+ * @param onEnterFullScreen
  */
-function requestFullScreen(element: HTMLElement): void {
+function requestFullScreen(element: HTMLElement, onEnterFullScreen: () => void = () => {}): void {
   if (element.requestFullscreen) {
-    element.requestFullscreen();
+    element.requestFullscreen().then((): void => { onEnterFullScreen(); });
   } else if (element['webkitRequestFullscreen']) {
     element['webkitRequestFullscreen']();
   }
@@ -400,14 +398,17 @@ function requestFullScreenWithKeys(element: HTMLElement): void {
 
 /**
  * Exit fullscreen.
- * @param {Document} doc The document to exit fullscren from
+ * @param {Document} doc The document to exit fullscreen from
+ * @param onExitFullScreen
  */
-function exitFullScreen(doc: Document): void {
+function exitFullScreen(doc: Document, onExitFullScreen: () => void = (): void => {}): void {
   if (doc.exitFullscreen) {
-    doc.exitFullscreen();
+    doc.exitFullscreen().then((): void => { onExitFullScreen(); });
   } else if (doc['webkitExitFullscreen']) {
     doc['webkitExitFullscreen']();
   }
 }
+
+
 
 export default FullScreen;

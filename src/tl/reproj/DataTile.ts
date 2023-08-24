@@ -3,7 +3,7 @@
  */
 import {ERROR_THRESHOLD} from './common';
 
-import DataTile, {asArrayLike, asImageLike, Data, toArray} from '../DataTile';
+import DataTile, {ArrayLike, asArrayLike, asImageLike, Data, toArray} from '../DataTile';
 import EventType from '../events/EventType';
 import TileState from '../TileState';
 import Triangulation from './Triangulation';
@@ -20,10 +20,6 @@ import Projection from "../proj/Projection";
 import TileGrid from "../tilegrid/TileGrid";
 import {TileCoord} from "../tilecoord";
 import {Size} from "../size";
-
-/**
- * @typedef {function(number, number, number, number) : import("../DataTile").default} TileGetter
- */
 
 export type TileGetter = (a: number, b: number, c: number, d: number) => DataTile;
 
@@ -291,7 +287,7 @@ class ReprojDataTile extends DataTile {
       /**
        * @type {import("../DataTile").ArrayLike}
        */
-      let tileData;
+      let tileData: ArrayLike;
       const arrayData = asArrayLike(tile.getData());
       if (arrayData) {
         tileData = arrayData;
@@ -504,7 +500,7 @@ class ReprojDataTile extends DataTile {
   /**
    * @private
    */
-  private unlistenSources_() {
+  private unlistenSources_(): void {
     this.sourcesListenerKeys_.forEach(unlistenByKey);
     this.sourcesListenerKeys_ = null;
   }

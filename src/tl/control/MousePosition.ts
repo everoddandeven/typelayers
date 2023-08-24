@@ -8,10 +8,10 @@ import {
   get as getProjection,
   getTransformFromProjections,
   getUserProjection,
-  identityTransform, TransformFunction,
+  identityTransform, ProjectionLike, TransformFunction,
 } from '../proj';
 import {listen} from '../events';
-import {wrapX} from '../coordinate';
+import {CoordinateFormat, wrapX} from '../coordinate';
 import BaseEvent from "../events/Event";
 import {CombinedOnSignature, EventTypes, OnSignature} from "../Observable";
 import ObjectEventType from "../ObjectEventType";
@@ -19,6 +19,7 @@ import {ObjectEvent} from "../Object";
 import MapEvent from "../MapEvent";
 import Projection from "../proj/Projection";
 import {Pixel} from "../pixel";
+import Map from "../Map";
 
 /**
  * @type {string}
@@ -49,7 +50,7 @@ interface MousePositionOptions {
  * @classdesc
  * A control to show the 2D coordinates of the mouse cursor. By default, these
  * are in the view projection, but can be in any supported projection.
- * By default the control is shown in the top right corner of the map, but this
+ * By default, the control is shown in the top right corner of the map, but this
  * can be changed by using the css selector `.tl-mouse-position`.
  *
  * On touch devices, which usually do not have a mouse cursor, the coordinates
@@ -84,17 +85,17 @@ class MousePosition extends Control {
     /***
      * @type {MousePositionOnSignature<import("../events").EventsKey>}
      */
-    this.on;
+    this.on = null;
 
     /***
      * @type {MousePositionOnSignature<import("../events").EventsKey>}
      */
-    this.once;
+    this.once = null;
 
     /***
      * @type {MousePositionOnSignature<void>}
      */
-    this.un;
+    this.un = null;
 
     this.addChangeListener(PROJECTION, this.handleProjectionChanged_);
 
@@ -145,7 +146,7 @@ class MousePosition extends Control {
   /**
    * @private
    */
-  handleProjectionChanged_() {
+  private handleProjectionChanged_(): void {
     this.transform_ = null;
   }
 
@@ -157,7 +158,7 @@ class MousePosition extends Control {
    * @observable
    * @api
    */
-  getCoordinateFormat() {
+  public getCoordinateFormat(): CoordinateFormat | null {
     return /** @type {import("../coordinate").CoordinateFormat|undefined} */ (
       this.get(COORDINATE_FORMAT)
     );
@@ -170,7 +171,7 @@ class MousePosition extends Control {
    * @observable
    * @api
    */
-  getProjection() {
+  public getProjection(): Projection | null {
     return /** @type {import("../proj/Projection").default|undefined} */ (
       this.get(PROJECTION)
     );
@@ -180,7 +181,7 @@ class MousePosition extends Control {
    * @param {MouseEvent} event Browser event.
    * @protected
    */
-  handleMouseMove(event) {
+  protected handleMouseMove(event: MouseEvent): void {
     const map = this.getMap();
     this.updateHTML_(map.getEventPixel(event));
   }
@@ -189,7 +190,7 @@ class MousePosition extends Control {
    * @param {Event} event Browser event.
    * @protected
    */
-  handleMouseOut(event) {
+  protected handleMouseOut(event: Event): void {
     this.updateHTML_(null);
   }
 
@@ -201,7 +202,7 @@ class MousePosition extends Control {
    * @param {import("../Map").default|null} map Map.
    * @api
    */
-  setMap(map) {
+  public setMap(map?: Map): void {
     super.setMap(map);
     if (map) {
       const viewport = map.getViewport();
@@ -224,7 +225,7 @@ class MousePosition extends Control {
    * @observable
    * @api
    */
-  setCoordinateFormat(format) {
+  public setCoordinateFormat(format: CoordinateFormat): void {
     this.set(COORDINATE_FORMAT, format);
   }
 
@@ -235,7 +236,7 @@ class MousePosition extends Control {
    * @observable
    * @api
    */
-  setProjection(projection) {
+  public setProjection(projection: ProjectionLike): void {
     this.set(PROJECTION, getProjection(projection));
   }
 
@@ -293,7 +294,7 @@ class MousePosition extends Control {
    * @param {import("../MapEvent").default} mapEvent Map event.
    * @override
    */
-  render(mapEvent) {
+  public render(mapEvent: MapEvent): void {
     const frameState = mapEvent.frameState;
     if (!frameState) {
       this.mapProjection_ = null;

@@ -3,7 +3,7 @@
  */
 
 export {default as Circle} from './geom/Circle';
-export {default as Geometry} from './geom/Geometry';
+export {default as Geometry, GeometryType} from './geom/Geometry';
 export {default as GeometryCollection} from './geom/GeometryCollection';
 export {default as LinearRing} from './geom/LinearRing';
 export {default as LineString} from './geom/LineString';

@@ -107,7 +107,7 @@ class Target extends Disposable {
       pendingRemovals[type] = 0;
     }
     ++dispatching[type];
-    let propagate;
+    let propagate: ListenerObject | ListenerFunction | boolean | void;
     for (let i = 0, ii = listeners.length; i < ii; ++i) {
       if ('handleEvent' in listeners[i]) {
         propagate = /** @type {import("../events").ListenerObject} */ (<ListenerObject>listeners[i]).handleEvent(evt);
@@ -130,7 +130,7 @@ class Target extends Disposable {
       }
       delete dispatching[type];
     }
-    return propagate;
+    return <boolean>propagate;
   }
 
   /**

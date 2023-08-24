@@ -24,12 +24,6 @@ import Projection from "../proj/Projection";
 import BaseEvent from "../events/Event";
 import Tile from "../Tile";
 
-/**
- * Data tile loading function.  The function is called with z, x, and y tile coordinates and
- * returns {@link import("../DataTile").Data data} for a tile or a promise for the same.
- * @typedef {function(number, number, number) : (import("../DataTile").Data|Promise<import("../DataTile").Data>)} Loader
- */
-
 export type DataTileLoaderFunction = (z: number, x: number, y: number) => Data | Promise<Data>;
 
 export interface DataTileSourceOptions {

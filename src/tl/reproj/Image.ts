@@ -22,10 +22,6 @@ import {
 import {EventsKey, listen, unlistenByKey} from '../events';
 import Projection from "../proj/Projection";
 
-/**
- * @typedef {function(import("../extent").Extent, number, number) : import("../ImageBase").default} FunctionType
- */
-
 export type ImageFunctionType = (extent: Extent, resolution: number, pixelRatio: number) => ImageBase;
 
 /**

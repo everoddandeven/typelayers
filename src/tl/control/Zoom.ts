@@ -5,6 +5,7 @@ import Control from './Control';
 import EventType from '../events/EventType';
 import {CLASS_CONTROL, CLASS_UNSELECTABLE} from '../css';
 import {easeOut} from '../easing';
+import MapEvent from '../MapEvent';
 
 export interface ZoomOptions {
   duration?: number;
@@ -28,6 +29,7 @@ export interface ZoomOptions {
  * @api
  */
 class Zoom extends Control {
+
   /**
    * @param {Options} [options] Zoom options.
    */
@@ -154,6 +156,8 @@ class Zoom extends Control {
       }
     }
   }
+
+  public render(mapEvent: MapEvent): void { }
 }
 
 export default Zoom;

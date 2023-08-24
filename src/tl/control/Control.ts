@@ -40,7 +40,7 @@ export interface ControlOptions
  *
  * @api
  */
-export default class Control extends BaseObject {
+export default abstract class Control extends BaseObject {
   /**
    * @param {Options} options Control options.
    */
@@ -51,7 +51,7 @@ export default class Control extends BaseObject {
   protected element?: HTMLElement;
   protected listenerKeys: EventsKey[];
 
-  constructor(options: ControlOptions) {
+  protected constructor(options: ControlOptions) {
     super();
 
     const element = options.element;
@@ -145,7 +145,7 @@ export default class Control extends BaseObject {
    * @param {import("../MapEvent").default} mapEvent Map event.
    * @api
    */
-  public render(mapEvent: MapEvent): void {}
+  public abstract render(mapEvent: MapEvent): void;
 
   /**
    * This function is used to set a target element for the control. It has no

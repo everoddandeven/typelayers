@@ -4,10 +4,9 @@
 import EventType from '../events/EventType';
 import ImageState from '../ImageState';
 import ImageStyle from './Image';
-import IconImage from "./IconImage";
+import IconImage, {get as getIconImage} from "./IconImage";
 import {asArray, Color} from '../color';
 import {assert} from '../asserts';
-import {get as getIconImage} from './IconImage';
 import {getUid} from '../util';
 import {Size} from "../size";
 
@@ -34,7 +33,7 @@ interface IconOptions {
   opacity?: number;
   width?: number;
   height?: number;
-  scale?: number | Size;
+  scale?: number | Size | string;
   rotateWithView?: boolean;
   rotation?: number;
   offset?: number[];
@@ -293,7 +292,7 @@ class Icon extends ImageStyle {
    * @api
    */
   public clone(): Icon {
-    let scale, width, height;
+    let scale: string | number | any[], width: number, height: number;
     if (this.initialOptions_) {
       width = this.initialOptions_.width;
       height = this.initialOptions_.height;
@@ -301,15 +300,15 @@ class Icon extends ImageStyle {
       scale = this.getScale();
       scale = Array.isArray(scale) ? scale.slice() : scale;
     }
-    const clone = new Icon({
+    return new Icon({
       anchor: this.anchor_.slice(),
       anchorOrigin: this.anchorOrigin_,
       anchorXUnits: this.anchorXUnits_,
       anchorYUnits: this.anchorYUnits_,
       color:
-        this.color_ && this.color_.slice
-          ? <Color>this.color_.slice()
-          : this.color_ || undefined,
+          this.color_ && this.color_.slice
+              ? <Color>this.color_.slice()
+              : this.color_ || undefined,
       crossOrigin: this.crossOrigin_,
       imgSize: this.imgSize_,
       offset: this.offset_.slice(),
@@ -325,7 +324,6 @@ class Icon extends ImageStyle {
       displacement: this.getDisplacement().slice(),
       declutterMode: this.getDeclutterMode(),
     });
-    return clone;
   }
 
   /**

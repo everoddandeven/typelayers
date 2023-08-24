@@ -240,7 +240,7 @@ export function createOrUpdateEmpty(dest: Extent): Extent {
  * @param {Extent} [dest] Extent.
  * @return {Extent} Extent.
  */
-export function createOrUpdateFromCoordinate(coordinate: Coordinate, dest: Extent): Extent {
+export function createOrUpdateFromCoordinate(coordinate: Coordinate, dest?: Extent): Extent {
   const x: number = coordinate[0];
   const y: number = coordinate[1];
   return createOrUpdate(x, y, x, y, dest);
@@ -251,7 +251,7 @@ export function createOrUpdateFromCoordinate(coordinate: Coordinate, dest: Exten
  * @param {Extent} [dest] Extent.
  * @return {Extent} Extent.
  */
-export function createOrUpdateFromCoordinates(coordinates: Array<Coordinate>, dest: Extent): Extent {
+export function createOrUpdateFromCoordinates(coordinates: Array<Coordinate>, dest?: Extent): Extent {
   const extent: Extent = createOrUpdateEmpty(dest);
   return extendCoordinates(extent, coordinates);
 }
@@ -269,7 +269,7 @@ export function createOrUpdateFromFlatCoordinates(
   offset: number,
   end: number,
   stride: number,
-  dest: Extent
+  dest?: Extent
 ): Extent {
   const extent: Extent = createOrUpdateEmpty(dest);
   return extendFlatCoordinates(extent, flatCoordinates, offset, end, stride);
@@ -280,7 +280,7 @@ export function createOrUpdateFromFlatCoordinates(
  * @param {Extent} [dest] Extent.
  * @return {Extent} Extent.
  */
-export function createOrUpdateFromRings(rings: Rings, dest: Extent): Extent {
+export function createOrUpdateFromRings(rings: Rings, dest?: Extent): Extent {
   const extent = createOrUpdateEmpty(dest);
   return extendRings(extent, rings);
 }

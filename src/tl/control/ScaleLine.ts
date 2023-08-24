@@ -56,7 +56,7 @@ export type ScaleLineOnSignature<Return> =
  * projection in OpenLayers), the scale is valid for all directions.
  * No scale line will be shown when the y-axis distance of a pixel at the
  * viewport center cannot be calculated in the view projection.
- * By default the scale line will show in the bottom left portion of the map,
+ * By default, the scale line will show in the bottom left portion of the map,
  * but this can be changed by using the css selector `.tl-scale-line`.
  * When specifying `bar` as `true`, a scalebar will be rendered instead
  * of a scaleline.
@@ -305,12 +305,13 @@ class ScaleLine extends Control {
     }
 
     let i = 3 * Math.floor(Math.log(minWidth * pointResolution) / Math.log(10));
-    let count, width, decimalCount;
-    let previousCount, previousWidth, previousDecimalCount;
+    let count: number, width: number, decimalCount: number;
+    let previousCount: number, previousWidth: number, previousDecimalCount: number;
     while (true) {
       decimalCount = Math.floor(i / 3);
       const decimal = Math.pow(10, decimalCount);
-      count = LEADING_DIGITS[((i % 3) + 3) % 3] * decimal;
+      let leading_digit = LEADING_DIGITS[((i % 3) + 3) % 3];
+      count = leading_digit * decimal;
       width = Math.round(count / pointResolution);
       if (isNaN(width)) {
         this.element.style.display = 'none';
@@ -411,7 +412,7 @@ class ScaleLine extends Control {
   }
 
   /**
-   * Creates the label for a marker marker at given position
+   * Creates the label for a marker at given position
    * @param {number} i The iterator
    * @param {number} width The width the scalebar will currently use
    * @param {boolean} isLast Flag indicating if we add the last step text

@@ -18,16 +18,17 @@ import {
 import {Size} from "../size";
 import {Coordinate} from "../coordinate";
 import Fill from "./Fill";
+import BaseEvent from "../events/Event";
 
 export interface RegularShapeOptions {
-  fill?: import("./Fill").default;
+  fill?: Fill;
   points: number;
   radius?: number;
   radius1?: number;
   radius2?: number;
   angle?: number;
-  displacement?: Array<number>;
-  stroke?: import("./Stroke").default;
+  displacement?: number[];
+  stroke?: Stroke;
   rotation?: number;
   rotateWithView?: boolean;
   scale?: number | Size;
@@ -73,7 +74,7 @@ class RegularShape extends ImageStyle {
     /**
      * @type {boolean}
      */
-    const rotateWithView =
+    const rotateWithView: boolean =
       options.rotateWithView !== undefined ? options.rotateWithView : false;
 
     super({
@@ -206,7 +207,7 @@ class RegularShape extends ImageStyle {
    * @return {number} Shape's rotation in radians.
    * @api
    */
-  getAngle() {
+  public getAngle(): number {
     return this.angle_;
   }
 
@@ -215,7 +216,7 @@ class RegularShape extends ImageStyle {
    * @return {import("./Fill").default} Fill style.
    * @api
    */
-  getFill() {
+  public getFill(): Fill {
     return this.fill_;
   }
 
@@ -224,7 +225,7 @@ class RegularShape extends ImageStyle {
    * @param {import("./Fill").default} fill Fill style.
    * @api
    */
-  setFill(fill) {
+  public setFill(fill: Fill): void {
     this.fill_ = fill;
     this.render();
   }
@@ -232,7 +233,7 @@ class RegularShape extends ImageStyle {
   /**
    * @return {HTMLCanvasElement} Image element.
    */
-  getHitDetectionImage() {
+  public getHitDetectionImage(): HTMLCanvasElement {
     if (!this.hitDetectionCanvas_) {
       this.createHitDetectionCanvas_(this.renderOptions_);
     }
@@ -245,11 +246,11 @@ class RegularShape extends ImageStyle {
    * @return {HTMLCanvasElement} Image or Canvas element.
    * @api
    */
-  getImage(pixelRatio) {
+  public getImage(pixelRatio: number): HTMLCanvasElement {
     let image: HTMLCanvasElement = this.canvas_[pixelRatio];
     if (!image) {
       const renderOptions = this.renderOptions_;
-      const context = createCanvasContext2D(
+      const context = <CanvasRenderingContext2D>createCanvasContext2D(
         renderOptions.size * pixelRatio,
         renderOptions.size * pixelRatio
       );
@@ -266,21 +267,21 @@ class RegularShape extends ImageStyle {
    * @param {number} pixelRatio Pixel ratio.
    * @return {number} Pixel ratio.
    */
-  getPixelRatio(pixelRatio) {
+  public getPixelRatio(pixelRatio: number): number {
     return pixelRatio;
   }
 
   /**
    * @return {import("../size").Size} Image size.
    */
-  getImageSize() {
+  public getImageSize(): Size {
     return this.size_;
   }
 
   /**
    * @return {import("../ImageState").default} Image state.
    */
-  getImageState() {
+  public getImageState(): ImageState {
     return ImageState.LOADED;
   }
 
@@ -289,7 +290,7 @@ class RegularShape extends ImageStyle {
    * @return {Array<number>} Origin.
    * @api
    */
-  getOrigin() {
+  public getOrigin(): Coordinate {
     return this.origin_;
   }
 
@@ -298,7 +299,7 @@ class RegularShape extends ImageStyle {
    * @return {number} Number of points for stars and regular polygons.
    * @api
    */
-  getPoints() {
+  public getPoints(): number {
     return this.points_;
   }
 
@@ -307,7 +308,7 @@ class RegularShape extends ImageStyle {
    * @return {number} Radius.
    * @api
    */
-  getRadius() {
+  public getRadius(): number {
     return this.radius_;
   }
 
@@ -316,7 +317,7 @@ class RegularShape extends ImageStyle {
    * @return {number|undefined} Radius2.
    * @api
    */
-  getRadius2() {
+  public getRadius2(): number {
     return this.radius2_;
   }
 
@@ -325,7 +326,7 @@ class RegularShape extends ImageStyle {
    * @return {import("../size").Size} Size.
    * @api
    */
-  getSize() {
+  public getSize(): Size {
     return this.size_;
   }
 
@@ -334,7 +335,7 @@ class RegularShape extends ImageStyle {
    * @return {import("./Stroke").default} Stroke style.
    * @api
    */
-  getStroke() {
+  public getStroke(): Stroke {
     return this.stroke_;
   }
 
@@ -343,7 +344,7 @@ class RegularShape extends ImageStyle {
    * @param {import("./Stroke").default} stroke Stroke style.
    * @api
    */
-  setStroke(stroke) {
+  public setStroke(stroke: Stroke): void {
     this.stroke_ = stroke;
     this.render();
   }
@@ -351,7 +352,7 @@ class RegularShape extends ImageStyle {
   /**
    * @param {function(import("../events/Event").default): void} listener Listener function.
    */
-  listenImageChange(listener) {}
+  public listenImageChange(listener: (event: BaseEvent) => void): void {}
 
   /**
    * Load not yet loaded URI.
@@ -361,7 +362,7 @@ class RegularShape extends ImageStyle {
   /**
    * @param {function(import("../events/Event").default): void} listener Listener function.
    */
-  unlistenImageChange(listener) {}
+  public unlistenImageChange(listener: (event: BaseEvent) => void): void {}
 
   /**
    * Calculate additional canvas size needed for the miter.
@@ -371,7 +372,7 @@ class RegularShape extends ImageStyle {
    * @return {number} Additional canvas size needed
    * @private
    */
-  calculateLineJoinSize_(lineJoin, strokeWidth, miterLimit) {
+  private calculateLineJoinSize_(lineJoin: string, strokeWidth: number, miterLimit: number): number {
     if (
       strokeWidth === 0 ||
       this.points_ === Infinity ||
@@ -457,7 +458,7 @@ class RegularShape extends ImageStyle {
    * @return {RenderOptions}  The render options
    * @protected
    */
-  createRenderOptions() {
+  protected createRenderOptions(): RenderOptions {
     let lineJoin = defaultLineJoin;
     let miterLimit = 0;
     let lineDash = null;
@@ -518,7 +519,7 @@ class RegularShape extends ImageStyle {
    * @param {CanvasRenderingContext2D} context The rendering context.
    * @param {number} pixelRatio The pixel ratio.
    */
-  private draw_(renderOptions, context, pixelRatio) {
+  private draw_(renderOptions: RenderOptions, context: CanvasRenderingContext2D, pixelRatio: number): void {
     context.scale(pixelRatio, pixelRatio);
     // set origin to canvas center
     context.translate(renderOptions.size / 2, renderOptions.size / 2);
@@ -550,7 +551,7 @@ class RegularShape extends ImageStyle {
    * @private
    * @param {RenderOptions} renderOptions Render options.
    */
-  private createHitDetectionCanvas_(renderOptions) {
+  private createHitDetectionCanvas_(renderOptions: RenderOptions): void {
     if (this.fill_) {
       let color = this.fill_.getColor();
 
@@ -567,7 +568,7 @@ class RegularShape extends ImageStyle {
       if (opacity === 0) {
         // if a transparent fill style is set, create an extra hit-detection image
         // with a default fill style
-        const context = createCanvasContext2D(
+        const context = <CanvasRenderingContext2D>createCanvasContext2D(
           renderOptions.size,
           renderOptions.size
         );
@@ -585,7 +586,7 @@ class RegularShape extends ImageStyle {
    * @private
    * @param {CanvasRenderingContext2D} context The context to draw in.
    */
-  private createPath_(context) {
+  private createPath_(context: CanvasRenderingContext2D): void {
     let points = this.points_;
     const radius = this.radius_;
     if (points === Infinity) {
@@ -611,7 +612,7 @@ class RegularShape extends ImageStyle {
    * @param {RenderOptions} renderOptions Render options.
    * @param {CanvasRenderingContext2D} context The context.
    */
-  private drawHitDetectionCanvas_(renderOptions, context) {
+  private drawHitDetectionCanvas_(renderOptions: RenderOptions, context: CanvasRenderingContext2D): void {
     // set origin to canvas center
     context.translate(renderOptions.size / 2, renderOptions.size / 2);
 

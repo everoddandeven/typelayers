@@ -1,8 +1,15 @@
 /**
  * @module tl/render/webgl/renderinstructions
  */
-import {apply as applyTransform} from '../../transform';
+import {apply as applyTransform, Transform} from '../../transform';
 import {transform2D} from '../../geom/flat/transform';
+import {AttributeDefinitions} from "./VectorStyleRenderer";
+import {
+  GeometryBatchItem,
+  LineStringGeometryBatch,
+  PointGeometryBatch,
+  PolygonGeometryBatch
+} from "./MixedGeometryBatch";
 
 /**
  * @param {Float32Array} renderInstructions Render instructions
@@ -13,8 +20,8 @@ import {transform2D} from '../../geom/flat/transform';
  */
 function pushCustomAttributesInRenderInstructions(
   renderInstructions: Float32Array,
-  customAttributes,
-  batchEntry,
+  customAttributes: AttributeDefinitions,
+  batchEntry: GeometryBatchItem,
   currentIndex: number
 ): number {
   let shift = 0;
@@ -42,7 +49,7 @@ function pushCustomAttributesInRenderInstructions(
  * @param {import('./VectorStyleRenderer').AttributeDefinitions} customAttributes Custom attributes
  * @return {number} Cumulated size of all attributes
  */
-export function getCustomAttributesSize(customAttributes) {
+export function getCustomAttributesSize(customAttributes: AttributeDefinitions): number {
   return Object.keys(customAttributes).reduce(
     (prev, curr) => prev + (customAttributes[curr].size || 1),
     0
@@ -59,11 +66,11 @@ export function getCustomAttributesSize(customAttributes) {
  * @return {Float32Array} Generated render instructions
  */
 export function generatePointRenderInstructions(
-  batch,
-  renderInstructions,
-  customAttributes,
-  transform
-) {
+  batch: PointGeometryBatch,
+  renderInstructions: Float32Array,
+  customAttributes: AttributeDefinitions,
+  transform: Transform
+): Float32Array {
   // here we anticipate the amount of render instructions for points:
   // 2 instructions per vertex for position (x and y)
   // + 1 instruction per vertex per custom attributes
@@ -109,11 +116,11 @@ export function generatePointRenderInstructions(
  * @return {Float32Array} Generated render instructions
  */
 export function generateLineStringRenderInstructions(
-  batch,
-  renderInstructions,
-  customAttributes,
-  transform
-) {
+  batch: LineStringGeometryBatch,
+  renderInstructions: Float32Array,
+  customAttributes: AttributeDefinitions,
+  transform: Transform
+): Float32Array {
   // here we anticipate the amount of render instructions for lines:
   // 2 instructions per vertex for position (x and y)
   // + 1 instruction per line per custom attributes
@@ -173,11 +180,11 @@ export function generateLineStringRenderInstructions(
  * @return {Float32Array} Generated render instructions
  */
 export function generatePolygonRenderInstructions(
-  batch,
-  renderInstructions,
-  customAttributes,
-  transform
-) {
+  batch: PolygonGeometryBatch,
+  renderInstructions: Float32Array,
+  customAttributes: AttributeDefinitions,
+  transform: Transform
+): Float32Array {
   // here we anticipate the amount of render instructions for polygons:
   // 2 instructions per vertex for position (x and y)
   // + 1 instruction per polygon per custom attributes

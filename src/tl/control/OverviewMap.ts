@@ -230,15 +230,15 @@ class OverviewMap extends Control {
 
     /* Functions definition */
 
-    const computeDesiredMousePosition = function (mousePosition) {
+    const computeDesiredMousePosition = function (mousePosition: MouseEvent): { clientX: number, clientY: number} {
       return {
         clientX: mousePosition.clientX,
         clientY: mousePosition.clientY,
       };
     };
 
-    const move = function (event) {
-      const position = /** @type {?} */ (computeDesiredMousePosition(event));
+    const move = function (event: MouseEvent) {
+      const position = /** @type {?} */ (<MouseEvent>computeDesiredMousePosition(event));
       const coordinates = ovmap.getEventCoordinateInternal(
         /** @type {MouseEvent} */ (position)
       );
@@ -246,7 +246,7 @@ class OverviewMap extends Control {
       overlay.setPosition(coordinates);
     };
 
-    const endMoving = function (event) {
+    const endMoving = function (event: MouseEvent): void {
       const coordinates = ovmap.getEventCoordinateInternal(event);
 
       scope.getMap().getView().setCenterInternal(coordinates);
@@ -383,7 +383,7 @@ class OverviewMap extends Control {
    * height) is less than the size of the overview map size times minRatio
    * or is greater than the size of the overview size times maxRatio.
    *
-   * If the map extent was not reset, the box size can fits in the defined
+   * If the map extent was not reset, the box size can fit in the defined
    * ratio sizes. This method then checks if is contained inside the overview
    * map current extent. If not, recenter the overview map to the current
    * main map center location.
@@ -534,7 +534,7 @@ class OverviewMap extends Control {
     this.ovmapPostrenderKey_ = listenOnce(
       this.ovmap_,
       MapEventType.POSTRENDER,
-      function (event) {
+      function (event): void {
         delete this.ovmapPostrenderKey_;
         this.updateBox_();
       },

@@ -13,7 +13,7 @@ export enum Relationship {
   RIGHT = 4,
   BELOW = 8,
   LEFT = 16,
-};
+}
 
 
 export default Relationship;

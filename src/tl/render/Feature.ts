@@ -3,6 +3,7 @@
  */
 import Feature from '../Feature';
 import {
+  Geometry,
   LineString,
   MultiLineString,
   MultiPoint,
@@ -25,13 +26,15 @@ import {
   getInteriorPointOfArray,
   getInteriorPointsOfMultiArray,
 } from '../geom/flat/interiorpoint';
-import {get as getProjection} from '../proj';
+import {get as getProjection, TransformFunction} from '../proj';
 import {inflateEnds} from '../geom/flat/orient';
 import {interpolatePoint} from '../geom/flat/interpolate';
 import {linearRingss as linearRingssCenter} from '../geom/flat/center';
 import {transform2D} from '../geom/flat/transform';
 import {GeometryType} from "../geom/Geometry";
-import {FlatCoordinates} from "../coordinate";
+import {Coordinate, FlatCoordinates} from "../coordinate";
+import {StyleFunction} from "../style/Style";
+import Projection from "../proj/Projection";
 
 /**
  * @type {import("../transform").Transform}
@@ -61,6 +64,7 @@ class RenderFeature {
   private flatMidpoints_: number[];
   private properties_: {[key: string]: any};
   private ends_: FlatCoordinates | FlatCoordinates[];
+  private styleFunction?: StyleFunction;
 
   constructor(
       type: GeometryType,
@@ -72,13 +76,13 @@ class RenderFeature {
     /**
      * @type {import("../style/Style").StyleFunction|undefined}
      */
-    this.styleFunction;
+    this.styleFunction = null;
 
     /**
      * @private
      * @type {import("../extent").Extent|undefined}
      */
-    this.extent_;
+    this.extent_ = null;
 
     /**
      * @private
@@ -129,7 +133,7 @@ class RenderFeature {
    * @return {*} Value for the requested key.
    * @api
    */
-  get(key) {
+  public get(key: string): any {
     return this.properties_[key];
   }
 
@@ -142,7 +146,7 @@ class RenderFeature {
     if (!this.extent_) {
       this.extent_ =
         this.type_ === 'Point'
-          ? createOrUpdateFromCoordinate(this.flatCoordinates_)
+          ? createOrUpdateFromCoordinate(<Coordinate>this.flatCoordinates_)
           : createOrUpdateFromFlatCoordinates(
               this.flatCoordinates_,
               0,
@@ -162,7 +166,7 @@ class RenderFeature {
       this.flatInteriorPoints_ = getInteriorPointOfArray(
         this.flatCoordinates_,
         0,
-        /** @type {Array<number>} */ (this.ends_),
+        /** @type {Array<number>} */ (<FlatCoordinates>this.ends_),
         2,
         flatCenter,
         0
@@ -174,18 +178,18 @@ class RenderFeature {
   /**
    * @return {Array<number>} Flat interior points.
    */
-  getFlatInteriorPoints() {
+  public getFlatInteriorPoints(): FlatCoordinates {
     if (!this.flatInteriorPoints_) {
       const flatCenters = linearRingssCenter(
         this.flatCoordinates_,
         0,
-        /** @type {Array<Array<number>>} */ (this.ends_),
+        /** @type {Array<Array<number>>} */ (<FlatCoordinates[]>this.ends_),
         2
       );
       this.flatInteriorPoints_ = getInteriorPointsOfMultiArray(
         this.flatCoordinates_,
         0,
-        /** @type {Array<Array<number>>} */ (this.ends_),
+        /** @type {Array<Array<number>>} */ (<FlatCoordinates[]>this.ends_),
         2,
         flatCenters
       );
@@ -212,12 +216,12 @@ class RenderFeature {
   /**
    * @return {Array<number>} Flat midpoints.
    */
-  getFlatMidpoints() {
+  public getFlatMidpoints(): FlatCoordinates {
     if (!this.flatMidpoints_) {
       this.flatMidpoints_ = [];
       const flatCoordinates = this.flatCoordinates_;
       let offset = 0;
-      const ends = /** @type {Array<number>} */ (this.ends_);
+      const ends = /** @type {Array<number>} */ (<FlatCoordinates>this.ends_);
       for (let i = 0, ii = ends.length; i < ii; ++i) {
         const end = ends[i];
         const midpoint = interpolatePoint(flatCoordinates, offset, end, 2, 0.5);
@@ -234,14 +238,14 @@ class RenderFeature {
    * @return {number|string|undefined} Id.
    * @api
    */
-  getId() {
+  public getId(): string | number {
     return this.id_;
   }
 
   /**
    * @return {Array<number>} Flat coordinates.
    */
-  getOrientedFlatCoordinates() {
+  public getOrientedFlatCoordinates(): FlatCoordinates {
     return this.flatCoordinates_;
   }
 
@@ -251,7 +255,7 @@ class RenderFeature {
    * @return {RenderFeature} Feature.
    * @api
    */
-  getGeometry() {
+  public getGeometry(): RenderFeature {
     return this;
   }
 
@@ -259,7 +263,7 @@ class RenderFeature {
    * @param {number} squaredTolerance Squared tolerance.
    * @return {RenderFeature} Simplified geometry.
    */
-  getSimplifiedGeometry(squaredTolerance) {
+  public getSimplifiedGeometry(squaredTolerance: number): RenderFeature {
     return this;
   }
 
@@ -270,7 +274,7 @@ class RenderFeature {
    * @param {import("../proj").TransformFunction} [transform] Optional transform function.
    * @return {RenderFeature} Simplified geometry.
    */
-  simplifyTransformed(squaredTolerance, transform) {
+  public simplifyTransformed(squaredTolerance: number, transform?: TransformFunction): RenderFeature {
     return this;
   }
 
@@ -279,21 +283,21 @@ class RenderFeature {
    * @return {Object<string, *>} Feature properties.
    * @api
    */
-  getProperties() {
+  public getProperties(): {[p: string]: any} {
     return this.properties_;
   }
 
   /**
    * @return {number} Stride.
    */
-  getStride() {
+  public getStride(): number {
     return 2;
   }
 
   /**
    * @return {import('../style/Style').StyleFunction|undefined} Style
    */
-  getStyleFunction() {
+  public getStyleFunction(): StyleFunction {
     return this.styleFunction;
   }
 
@@ -302,7 +306,7 @@ class RenderFeature {
    * @return {import("../geom/Geometry").Type} Geometry type.
    * @api
    */
-  getType() {
+  public getType(): GeometryType {
     return this.type_;
   }
 
@@ -311,7 +315,7 @@ class RenderFeature {
    *
    * @param {import("../proj").ProjectionLike} projection The data projection
    */
-  transform(projection) {
+  public transform(projection: Projection): void {
     projection = getProjection(projection);
     const pixelExtent = projection.getExtent();
     const projectedExtent = projection.getWorldExtent();
@@ -340,18 +344,18 @@ class RenderFeature {
   /**
    * @return {Array<number>|Array<Array<number>>} Ends or endss.
    */
-  getEnds() {
+  public getEnds(): FlatCoordinates | FlatCoordinates[] {
     return this.ends_;
   }
+
+  public getEndss(): FlatCoordinates | FlatCoordinates[] {
+    return this.ends_;
+  }
+
+  public getFlatCoordinates(): FlatCoordinates {
+    return this.getOrientedFlatCoordinates();
+  }
 }
-
-RenderFeature.prototype.getEndss = RenderFeature.prototype.getEnds;
-
-/**
- * @return {Array<number>} Flat coordinates.
- */
-RenderFeature.prototype.getFlatCoordinates =
-  RenderFeature.prototype.getOrientedFlatCoordinates;
 
 /**
  * Create a geometry from an `tl/render/Feature`
@@ -361,7 +365,7 @@ RenderFeature.prototype.getFlatCoordinates =
  * New geometry instance.
  * @api
  */
-export function toGeometry(renderFeature) {
+export function toGeometry(renderFeature: RenderFeature): Geometry {
   const geometryType = renderFeature.getType();
   switch (geometryType) {
     case 'Point':
@@ -374,11 +378,11 @@ export function toGeometry(renderFeature) {
       return new MultiLineString(
         renderFeature.getFlatCoordinates(),
         'XY',
-        /** @type {Array<number>} */ (renderFeature.getEnds())
+        /** @type {Array<number>} */ (<FlatCoordinates>renderFeature.getEnds())
       );
     case 'Polygon':
       const flatCoordinates = renderFeature.getFlatCoordinates();
-      const ends = /** @type {Array<number>} */ (renderFeature.getEnds());
+      const ends = /** @type {Array<number>} */ (<FlatCoordinates>renderFeature.getEnds());
       const endss = inflateEnds(flatCoordinates, ends);
       return endss.length > 1
         ? new MultiPolygon(flatCoordinates, 'XY', endss)
@@ -397,7 +401,7 @@ export function toGeometry(renderFeature) {
  * geometry, and id copied over.
  * @api
  */
-export function toFeature(renderFeature, geometryName) {
+export function toFeature(renderFeature: RenderFeature, geometryName: string = 'geometry'): Feature {
   const id = renderFeature.getId();
   const geometry = toGeometry(renderFeature);
   const properties = renderFeature.getProperties();

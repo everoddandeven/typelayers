@@ -11,7 +11,7 @@ import {
   getHeight,
   getWidth,
 } from './extent';
-import {toSize} from './size';
+import {Size, toSize} from './size';
 import Projection from "./proj/Projection";
 import {TileCoord} from "./tilecoord";
 import {Extent} from "./extent/Extent";
@@ -75,11 +75,11 @@ export function createForExtent(extent: Extent, maxZoom: number, tileSize: numbe
 
 export interface XYZOptions
 {
-  extent: Extent,
-  maxResolution: number,
-  maxZoom: number,
-  minZoom: number,
-  tileSize: Size
+  extent?: Extent,
+  maxResolution?: number,
+  maxZoom?: number,
+  minZoom?: number,
+  tileSize?: Size | number
 }
 
 /**

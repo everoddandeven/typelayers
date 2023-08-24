@@ -8,7 +8,7 @@ import LineStringBuilder from './LineStringBuilder';
 import PolygonBuilder from './PolygonBuilder';
 import TextBuilder from './TextBuilder';
 import {Extent} from "../../extent/Extent";
-import {BuilderType} from '../canvas';
+import {BuilderType, SerializableInstructions} from '../canvas';
 
 /**
  * @type {Object<import("../canvas").BuilderType, typeof Builder>}
@@ -77,8 +77,7 @@ class BuilderGroup {
       builderInstructions[zKey] = builderInstructions[zKey] || {};
       const builders = this.buildersByZIndex_[zKey];
       for (const builderKey in builders) {
-        const builderInstruction = builders[builderKey].finish();
-        builderInstructions[zKey][builderKey] = builderInstruction;
+        builderInstructions[zKey][builderKey] = builders[builderKey].finish();
       }
     }
     return builderInstructions;

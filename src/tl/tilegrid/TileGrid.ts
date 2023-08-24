@@ -556,7 +556,7 @@ class TileGrid {
    * @return {import("../tilecoord").TileCoord} Tile coordinate.
    * @api
    */
-  getTileCoordForCoordAndZ(coordinate, z, opt_tileCoord) {
+  public getTileCoordForCoordAndZ(coordinate: Coordinate, z: number, opt_tileCoord?: TileCoord): TileCoord {
     return this.getTileCoordForXYAndZ_(
       coordinate[0],
       coordinate[1],

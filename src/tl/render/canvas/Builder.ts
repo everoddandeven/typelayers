@@ -1,7 +1,7 @@
 /**
  * @module tl/render/canvas/Builder
  */
-import CanvasInstruction, {Instruction} from './Instruction';
+import CanvasInstruction from './Instruction';
 import Relationship from '../../extent/Relationship';
 import VectorContext from '../VectorContext';
 import {asColorLike} from '../../colorlike';
@@ -19,7 +19,7 @@ import {
   defaultLineJoin,
   defaultLineWidth,
   defaultMiterLimit,
-  defaultStrokeStyle, FillStrokeState,
+  defaultStrokeStyle, FillStrokeState, SerializableInstructions,
 } from '../canvas';
 import {equals, reverseSubArray} from '../../array';
 import {
@@ -28,6 +28,12 @@ import {
   inflateMultiCoordinatesArray,
 } from '../../geom/flat/inflate';
 import {Coordinate, FlatCoordinates} from "../../coordinate";
+import SimpleGeometry from "../../geom/SimpleGeometry";
+import {FeatureLike} from "../../Feature";
+import {Geometry, MultiLineString, MultiPolygon, Polygon} from "../../geom";
+import RenderFeature from "../Feature";
+import {Fill} from "../../style";
+import Stroke from "../../style/Stroke";
 
 class CanvasBuilder extends VectorContext {
   /**
@@ -196,14 +202,14 @@ class CanvasBuilder extends VectorContext {
    * @protected
    * @return {number} My end.
    */
-  appendFlatLineCoordinates(
-    flatCoordinates,
-    offset,
-    end,
-    stride,
-    closed,
-    skipFirst
-  ) {
+  protected appendFlatLineCoordinates(
+    flatCoordinates: FlatCoordinates,
+    offset: number,
+    end: number,
+    stride: number,
+    closed: boolean,
+    skipFirst: boolean
+  ): number {
     const coordinates = this.coordinates;
     let myEnd = coordinates.length;
     const extent = this.getBufferedMaxExtent();
@@ -215,7 +221,7 @@ class CanvasBuilder extends VectorContext {
     const nextCoord = this.tmpCoordinate_;
     let skipped = true;
 
-    let i, lastRel, nextRel;
+    let i: number, lastRel: number = null, nextRel: number;
     for (i = offset + stride; i < end; i += stride) {
       nextCoord[0] = flatCoordinates[i];
       nextCoord[1] = flatCoordinates[i + 1];
@@ -256,7 +262,7 @@ class CanvasBuilder extends VectorContext {
    * @param {Array<number>} builderEnds Builder ends.
    * @return {number} Offset.
    */
-  drawCustomCoordinates_(flatCoordinates, offset, ends, stride, builderEnds) {
+  private drawCustomCoordinates_(flatCoordinates: FlatCoordinates, offset: number, ends: FlatCoordinates, stride: number, builderEnds: FlatCoordinates): number {
     for (let i = 0, ii = ends.length; i < ii; ++i) {
       const end = ends[i];
       const builderEnd = this.appendFlatLineCoordinates(
@@ -279,27 +285,21 @@ class CanvasBuilder extends VectorContext {
    * @param {Function} renderer Renderer.
    * @param {Function} hitDetectionRenderer Renderer.
    */
-  drawCustom(geometry, feature, renderer, hitDetectionRenderer) {
+  public drawCustom(geometry: SimpleGeometry, feature: FeatureLike, renderer: Function, hitDetectionRenderer: Function): void {
     this.beginGeometry(geometry, feature);
 
     const type = geometry.getType();
     const stride = geometry.getStride();
     const builderBegin = this.coordinates.length;
 
-    let flatCoordinates, builderEnd, builderEnds, builderEndss;
-    let offset;
+    let flatCoordinates: FlatCoordinates, builderEnd: number, builderEnds: FlatCoordinates, builderEndss: FlatCoordinates[];
+    let offset: number;
 
     switch (type) {
       case 'MultiPolygon':
-        flatCoordinates =
-          /** @type {import("../../geom/MultiPolygon").default} */ (
-            geometry
-          ).getOrientedFlatCoordinates();
+        flatCoordinates = (<MultiPolygon>geometry).getOrientedFlatCoordinates();
         builderEndss = [];
-        const endss =
-          /** @type {import("../../geom/MultiPolygon").default} */ (
-            geometry
-          ).getEndss();
+        const endss = (<MultiPolygon>geometry).getEndss();
         offset = 0;
         for (let i = 0, ii = endss.length; i < ii; ++i) {
           const myEnds = [];
@@ -335,14 +335,14 @@ class CanvasBuilder extends VectorContext {
         flatCoordinates =
           type == 'Polygon'
             ? /** @type {import("../../geom/Polygon").default} */ (
-                geometry
+                <Polygon>geometry
               ).getOrientedFlatCoordinates()
             : geometry.getFlatCoordinates();
         offset = this.drawCustomCoordinates_(
           flatCoordinates,
           0,
           /** @type {import("../../geom/Polygon").default|import("../../geom/MultiLineString").default} */ (
-            geometry
+            <MultiLineString>geometry
           ).getEnds(),
           stride,
           builderEnds
@@ -445,7 +445,7 @@ class CanvasBuilder extends VectorContext {
    * @param {import("../../geom/Geometry").default|import("../Feature").default} geometry The geometry.
    * @param {import("../../Feature").FeatureLike} feature Feature.
    */
-  beginGeometry(geometry, feature) {
+  protected beginGeometry(geometry: Geometry | RenderFeature, feature: FeatureLike): void {
     this.beginGeometryInstruction1_ = [
       CanvasInstruction.BEGIN_GEOMETRY,
       feature,
@@ -465,7 +465,7 @@ class CanvasBuilder extends VectorContext {
   /**
    * @return {import("../canvas").SerializableInstructions} the serializable instructions.
    */
-  finish() {
+  public finish(): SerializableInstructions {
     return {
       instructions: this.instructions,
       hitDetectionInstructions: this.hitDetectionInstructions,
@@ -476,19 +476,19 @@ class CanvasBuilder extends VectorContext {
   /**
    * Reverse the hit detection instructions.
    */
-  reverseHitDetectionInstructions() {
+  public reverseHitDetectionInstructions(): void {
     const hitDetectionInstructions = this.hitDetectionInstructions;
     // step 1 - reverse array
     hitDetectionInstructions.reverse();
     // step 2 - reverse instructions within geometry blocks
-    let i;
+    let i: number;
     const n = hitDetectionInstructions.length;
-    let instruction;
-    let type;
+    let instruction: number[];
+    let type: CanvasInstruction;
     let begin = -1;
     for (i = 0; i < n; ++i) {
       instruction = hitDetectionInstructions[i];
-      type = /** @type {import("./Instruction").default} */ (instruction[0]);
+      type = /** @type {import("./Instruction").default} */ (<CanvasInstruction>instruction[0]);
       if (type == CanvasInstruction.END_GEOMETRY) {
         begin = i;
       } else if (type == CanvasInstruction.BEGIN_GEOMETRY) {
@@ -503,7 +503,7 @@ class CanvasBuilder extends VectorContext {
    * @param {import("../../style/Fill").default} fillStyle Fill style.
    * @param {import("../../style/Stroke").default} strokeStyle Stroke style.
    */
-  setFillStrokeStyle(fillStyle, strokeStyle) {
+  public setFillStrokeStyle(fillStyle: Fill, strokeStyle: Stroke): void {
     const state = this.state;
     if (fillStyle) {
       const fillStyleColor = fillStyle.getColor();
@@ -563,10 +563,10 @@ class CanvasBuilder extends VectorContext {
    * @param {import("../canvas").FillStrokeState} state SourceState.
    * @return {Array<*>} Fill instruction.
    */
-  createFill(state) {
+  public createFill(state: FillStrokeState): any[] {
     const fillStyle = state.fillStyle;
     /** @type {Array<*>} */
-    const fillInstruction = [CanvasInstruction.SET_FILL_STYLE, fillStyle];
+    const fillInstruction: any[] = [CanvasInstruction.SET_FILL_STYLE, fillStyle];
     if (typeof fillStyle !== 'string') {
       // Fill is a pattern or gradient - align it!
       fillInstruction.push(true);
@@ -577,7 +577,7 @@ class CanvasBuilder extends VectorContext {
   /**
    * @param {import("../canvas").FillStrokeState} state SourceState.
    */
-  applyStroke(state) {
+  public applyStroke(state: FillStrokeState): void {
     this.instructions.push(this.createStroke(state));
   }
 
@@ -585,7 +585,7 @@ class CanvasBuilder extends VectorContext {
    * @param {import("../canvas").FillStrokeState} state SourceState.
    * @return {Array<*>} Stroke instruction.
    */
-  createStroke(state) {
+  public createStroke(state: FillStrokeState): any[] {
     return [
       CanvasInstruction.SET_STROKE_STYLE,
       state.strokeStyle,
@@ -602,7 +602,7 @@ class CanvasBuilder extends VectorContext {
    * @param {import("../canvas").FillStrokeState} state SourceState.
    * @param {function(this:CanvasBuilder, import("../canvas").FillStrokeState):Array<*>} createFill Create fill.
    */
-  updateFillStyle(state, createFill) {
+  public updateFillStyle(state: FillStrokeState, createFill: (builder: CanvasBuilder, state: FillStrokeState) => any[]): void {
     const fillStyle = state.fillStyle;
     if (typeof fillStyle !== 'string' || state.currentFillStyle != fillStyle) {
       if (fillStyle !== undefined) {
@@ -616,7 +616,7 @@ class CanvasBuilder extends VectorContext {
    * @param {import("../canvas").FillStrokeState} state SourceState.
    * @param {function(this:CanvasBuilder, import("../canvas").FillStrokeState): void} applyStroke Apply stroke.
    */
-  updateStrokeStyle(state, applyStroke) {
+  public updateStrokeStyle(state: FillStrokeState, applyStroke: (builder: CanvasBuilder, state: FillStrokeState) => void): void {
     const strokeStyle = state.strokeStyle;
     const lineCap = state.lineCap;
     const lineDash = state.lineDash;
@@ -650,7 +650,7 @@ class CanvasBuilder extends VectorContext {
   /**
    * @param {import("../../Feature").FeatureLike} feature Feature.
    */
-  endGeometry(feature) {
+  public endGeometry(feature: FeatureLike): void {
     this.beginGeometryInstruction1_[2] = this.instructions.length;
     this.beginGeometryInstruction1_ = null;
     this.beginGeometryInstruction2_[2] = this.hitDetectionInstructions.length;
@@ -667,7 +667,7 @@ class CanvasBuilder extends VectorContext {
    * @return {import("../../extent").Extent} The buffered rendering extent.
    * @protected
    */
-  getBufferedMaxExtent() {
+  protected getBufferedMaxExtent(): Extent {
     if (!this.bufferedMaxExtent_) {
       this.bufferedMaxExtent_ = clone(this.maxExtent, null);
       if (this.maxLineWidth > 0) {

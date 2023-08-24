@@ -12,6 +12,7 @@ import Text, {TextJustify, TextPlacement} from './Text';
 import {Color} from "../color";
 import {ColorLike} from "../colorlike";
 import {Size} from "../size";
+import Image from "./Image";
 
 export type FlatStyle = FlatFill & FlatStroke & FlatText & FlatIcon & FlatShape & FlatCircle;
 
@@ -189,7 +190,7 @@ function getText(flatStyle: FlatStyle): Text {
     return;
   }
 
-  const text = new Text({
+  return new Text({
     text: value,
     font: flatStyle['text-font'],
     maxAngle: flatStyle['text-max-angle'],
@@ -210,19 +211,17 @@ function getText(flatStyle: FlatStyle): Text {
     stroke: getStroke(flatStyle, 'text-'),
     backgroundStroke: getStroke(flatStyle, 'text-background-'),
   });
-
-  return text;
 }
 
 /**
  * @param {FlatStyle} flatStyle The flat style.
  * @return {import("./Image").default|undefined} The image (if any).
  */
-function getImage(flatStyle: FlatStyle) {
+function getImage(flatStyle: FlatStyle): Image {
   const iconSrc = flatStyle['icon-src'];
   const iconImg = flatStyle['icon-img'];
   if (iconSrc || iconImg) {
-    const icon = new Icon({
+    return new Icon({
       src: iconSrc,
       img: iconImg,
       imgSize: flatStyle['icon-img-size'],
@@ -243,13 +242,12 @@ function getImage(flatStyle: FlatStyle) {
       size: flatStyle['icon-size'],
       declutterMode: flatStyle['icon-declutter-mode'],
     });
-    return icon;
   }
 
   const shapePoints = flatStyle['shape-points'];
   if (shapePoints) {
     const prefix = 'shape-';
-    const shape = new RegularShape({
+    return new RegularShape({
       points: shapePoints,
       fill: getFill(flatStyle, prefix),
       stroke: getStroke(flatStyle, prefix),
@@ -263,14 +261,12 @@ function getImage(flatStyle: FlatStyle) {
       scale: flatStyle['shape-scale'],
       declutterMode: flatStyle['shape-declutter-mode'],
     });
-
-    return shape;
   }
 
   const circleRadius = flatStyle['circle-radius'];
   if (circleRadius) {
     const prefix = 'circle-';
-    const circle = new Circle({
+    return new Circle({
       radius: circleRadius,
       fill: getFill(flatStyle, prefix),
       stroke: getStroke(flatStyle, prefix),
@@ -280,8 +276,6 @@ function getImage(flatStyle: FlatStyle) {
       rotateWithView: flatStyle['circle-rotate-with-view'],
       declutterMode: flatStyle['circle-declutter-mode'],
     });
-
-    return circle;
   }
 
   return;

@@ -6,6 +6,8 @@
 import PaletteTexture from '../webgl/PaletteTexture';
 import {Uniforms} from '../renderer/webgl/TileLayer';
 import {asArray, Color, fromString, isStringColor} from '../color';
+import {FeatureLike} from "../Feature";
+import {LiteralStyle} from "./literal";
 
 /**
  * Base type used for literal style parameters; can be a number literal or the output of an operator,
@@ -118,21 +120,21 @@ export type ExpressionValue = any[] | Color | string | number | boolean;
  * Note: these are binary flags.
  * @enum {number}
  */
-export const ValueTypes = {
-  NUMBER: 0b00001,
-  STRING: 0b00010,
-  COLOR: 0b00100,
-  BOOLEAN: 0b01000,
-  NUMBER_ARRAY: 0b10000,
-  ANY: 0b11111,
-  NONE: 0,
-};
+export enum ValueTypes {
+  NUMBER = 0b00001,
+  STRING = 0b00010,
+  COLOR = 0b00100,
+  BOOLEAN = 0b01000,
+  NUMBER_ARRAY = 0b10000,
+  ANY = 0b11111,
+  NONE = 0,
+}
 
 /**
  * @param {string} typeHint Type hint
  * @return {ValueTypes} Resulting value type (will be a single type)
  */
-function getTypeFromHint(typeHint) {
+function getTypeFromHint(typeHint: string): ValueTypes {
   switch (typeHint) {
     case 'string':
       return ValueTypes.STRING;
@@ -149,22 +151,16 @@ function getTypeFromHint(typeHint) {
   }
 }
 
-/**
- * An operator declaration must contain two methods: `getReturnType` which returns a type based on
- * the operator arguments, and `toGlsl` which returns a GLSL-compatible string.
- * Note: both methods can process arguments recursively.
- * @typedef {Object} Operator
- * @property {function(Array<ExpressionValue>): ValueTypes|number} getReturnType Returns one or several types
- * @property {function(ParsingContext, Array<ExpressionValue>, ValueTypes): string} toGlsl Returns a GLSL-compatible string
- * given a parsing context, an array of arguments and an expected type.
- * Note: the expected type can be a combination such as ValueTypes.NUMBER | ValueTypes.STRING or ValueTypes.ANY for instance
- */
+export interface Operator {
+    getReturnType: (args: ExpressionValue[]) => ValueTypes | number;
+    toGlsl: (context: ParsingContext, args: ExpressionValue[], expectedType: ValueTypes) => string;
+}
 
 /**
  * Operator declarations
  * @type {Object<string, Operator>}
  */
-export const Operators = {};
+export const Operators: {[key: string]: Operator} = {};
 
 /**
  * Returns the possible types for a given value (each type being a binary flag)
@@ -172,7 +168,7 @@ export const Operators = {};
  * @param {ExpressionValue} value Value
  * @return {ValueTypes|number} Type or types inferred from the value
  */
-export function getValueType(value) {
+export function getValueType(value: ExpressionValue): ValueTypes | number {
   if (typeof value === 'number') {
     return ValueTypes.NUMBER;
   }
@@ -219,7 +215,7 @@ export function getValueType(value) {
  * @param {ValueTypes|number} valueType Number containing value type binary flags
  * @return {boolean} True if only one type flag is enabled, false if zero or multiple
  */
-export function isTypeUnique(valueType) {
+export function isTypeUnique(valueType: ValueTypes | number): boolean {
   return Math.log2(valueType) % 1 === 0;
 }
 
@@ -228,7 +224,7 @@ export function isTypeUnique(valueType) {
  * @param {ValueTypes|number} valueType Number containing value type binary flags
  * @return {string} Types
  */
-function printTypes(valueType) {
+function printTypes(valueType: ValueTypes | number): string {
   const result = [];
   if ((valueType & ValueTypes.NUMBER) > 0) {
     result.push('number');
@@ -248,33 +244,29 @@ function printTypes(valueType) {
   return result.length > 0 ? result.join(', ') : '(no type)';
 }
 
-/**
- * @typedef {Object} ParsingContextExternal
- * @property {string} name Name, unprefixed
- * @property {ValueTypes} type One of the value types constants
- * @property {function(import("../Feature").FeatureLike): *} [callback] Function used for computing the attribute value;
- *   if undefined, `feature.get(attribute.name)` will be used
- */
+export interface ParsingContextExternal {
+  name: string;
+  type: ValueTypes;
+  callback?: (feature: FeatureLike) => any;
+}
 
-/**
- * Context available during the parsing of an expression.
- * @typedef {Object} ParsingContext
- * @property {boolean} [inFragmentShader] If false, means the expression output should be made for a vertex shader
- * @property {Array<ParsingContextExternal>} variables External variables used in the expression
- * @property {Array<ParsingContextExternal>} attributes External attributes used in the expression
- * @property {Object<string, number>} stringLiteralsMap This object maps all encountered string values to a number
- * @property {Object<string, string>} functions Lookup of functions used by the style.
- * @property {number} [bandCount] Number of bands per pixel.
- * @property {Array<PaletteTexture>} [paletteTextures] List of palettes used by the style.
- * @property {import("./literal").LiteralStyle} style The style being parsed
- */
+interface ParsingContext {
+  inFragmentShader?: boolean;
+  variables: ParsingContextExternal[];
+  attributes: ParsingContextExternal[];
+  stringLiteralsMap: {[key: string]: number};
+  functions: {[key: string]: string};
+  bandCount?: number;
+  paletteTextures?: PaletteTexture[];
+  style: LiteralStyle;
+}
 
 /**
  * @param {string} operator Operator
  * @param {ParsingContext} context Parsing context
  * @return {string} A function name based on the operator, unique in the given context
  */
-function computeOperatorFunctionName(operator, context) {
+function computeOperatorFunctionName(operator: string, context: ParsingContext): string {
   return `operator_${operator}_${Object.keys(context.functions).length}`;
 }
 
@@ -283,7 +275,7 @@ function computeOperatorFunctionName(operator, context) {
  * @param {number} v Numerical value.
  * @return {string} The value as string.
  */
-export function numberToGlsl(v) {
+export function numberToGlsl(v: number): string {
   const s = v.toString();
   return s.includes('.') ? s : s + '.0';
 }
@@ -291,9 +283,9 @@ export function numberToGlsl(v) {
 /**
  * Will return the number array as a float with a dot separator, concatenated with ', '.
  * @param {Array<number>} array Numerical values array.
- * @return {string} The array as a vector, e. g.: `vec3(1.0, 2.0, 3.0)`.
+ * @return {string} The array as a vector, e.g.: `vec3(1.0, 2.0, 3.0)`.
  */
-export function arrayToGlsl(array) {
+export function arrayToGlsl(array: number[]): string {
   if (array.length < 2 || array.length > 4) {
     throw new Error(
       '`formatArray` can only output `vec2`, `vec3` or `vec4` arrays.'
@@ -309,7 +301,7 @@ export function arrayToGlsl(array) {
  * Note that the final array will always have 4 components.
  * @return {string} The color expressed in the `vec4(1.0, 1.0, 1.0, 1.0)` form.
  */
-export function colorToGlsl(color) {
+export function colorToGlsl(color: Color | string): string {
   const array = asArray(color);
   const alpha = array.length > 3 ? array[3] : 1;
   // all components are premultiplied with alpha value
@@ -327,7 +319,7 @@ export function colorToGlsl(color) {
  * @param {string} string String literal value
  * @return {number} Number equivalent
  */
-export function getStringNumberEquivalent(context, string) {
+export function getStringNumberEquivalent(context: ParsingContext, string: string): number {
   if (context.stringLiteralsMap[string] === undefined) {
     context.stringLiteralsMap[string] = Object.keys(
       context.stringLiteralsMap
@@ -343,7 +335,7 @@ export function getStringNumberEquivalent(context, string) {
  * @param {string} string String literal value
  * @return {string} GLSL-compatible string containing a number
  */
-export function stringToGlsl(context, string) {
+export function stringToGlsl(context: ParsingContext, string: string): string {
   return numberToGlsl(getStringNumberEquivalent(context, string));
 }
 
@@ -356,7 +348,7 @@ export function stringToGlsl(context, string) {
  * If omitted, defaults to ValueTypes.NUMBER
  * @return {string} GLSL-compatible output
  */
-export function expressionToGlsl(context, value: ExpressionValue, expectedType?: number): string {
+export function expressionToGlsl(context: ParsingContext, value: ExpressionValue, expectedType?: number): string {
   const returnType =
     expectedType !== undefined ? expectedType : ValueTypes.NUMBER;
   // operator
@@ -374,7 +366,7 @@ export function expressionToGlsl(context, value: ExpressionValue, expectedType?:
   assertNotEmptyType(value, possibleType, '');
 
   if ((possibleType & ValueTypes.NUMBER) > 0) {
-    return numberToGlsl(/** @type {number} */ (value));
+    return numberToGlsl(/** @type {number} */ (<number>value));
   }
 
   if ((possibleType & ValueTypes.BOOLEAN) > 0) {
@@ -386,11 +378,11 @@ export function expressionToGlsl(context, value: ExpressionValue, expectedType?:
   }
 
   if ((possibleType & ValueTypes.COLOR) > 0) {
-    return colorToGlsl(/** @type {Array<number> | string} */ (value));
+    return colorToGlsl(/** @type {Array<number> | string} */ (<Color | string>value));
   }
 
   if ((possibleType & ValueTypes.NUMBER_ARRAY) > 0) {
-    return arrayToGlsl(/** @type {Array<number>} */ (value));
+    return arrayToGlsl(/** @type {Array<number>} */ (<number[]>value));
   }
 
   throw new Error(
@@ -498,7 +490,7 @@ Operators['get'] = {
   getReturnType: function (args) {
     if (args.length === 2) {
       const hint = args[1];
-      return getTypeFromHint(/** @type {string} */ (hint));
+      return getTypeFromHint(/** @type {string} */ (<string>hint));
     }
     return ValueTypes.ANY;
   },

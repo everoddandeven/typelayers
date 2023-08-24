@@ -8,6 +8,8 @@ import {createCanvasContext2D} from '../dom';
 import {getFontParameters} from '../css';
 import {ColorLike} from "../colorlike";
 import {Size} from '../size';
+import {ReplayImageOrLabelArgs} from "./canvas/Executor";
+import {Transform} from "../transform";
 
 export type BuilderType = 'Circle' | 'Image' | 'LineString' | 'Polygon' | 'Text' | 'Default';
 
@@ -75,11 +77,7 @@ export interface SerializableInstructions {
   strokeStates?: {[key:string]: StrokeState};
 }
 
-/**
- * @typedef {Object<number, import("./canvas/Executor").ReplayImageOrLabelArgs>} DeclutterImageWithText
- */
-
-export type DeclutterImageWithText = any;
+export type DeclutterImageWithText = {[p: number]: ReplayImageOrLabelArgs};
 
 /**
  * @const
@@ -190,7 +188,7 @@ export const registerFont = (function () {
   const referenceFonts = ['monospace', 'serif'];
   const len = referenceFonts.length;
   const text = 'wmytzilWMYTZIL@#/&?$%10\uF013';
-  let interval, referenceWidth;
+  let interval: number, referenceWidth: number;
 
   /**
    * @param {string} fontStyle Css font-style
@@ -338,7 +336,7 @@ function measureText(font: string, text: string): TextMetrics {
  * @param {string} text Text.
  * @return {number} Width.
  */
-export function measureTextWidth(font, text) {
+export function measureTextWidth(font: string, text: string): number {
   return measureText(font, text).width;
 }
 
@@ -349,7 +347,7 @@ export function measureTextWidth(font, text) {
  * @param {Object<string, number>} cache A lookup of cached widths by text.
  * @return {number} The text width.
  */
-export function measureAndCacheTextWidth(font, text, cache) {
+export function measureAndCacheTextWidth(font: string, text: string, cache: {[key:string]: number}): number {
   if (text in cache) {
     return cache[text];
   }
@@ -360,12 +358,13 @@ export function measureAndCacheTextWidth(font, text, cache) {
   return width;
 }
 
+
 /**
  * @param {TextState} baseStyle Base style.
  * @param {Array<string>} chunks Text chunks to measure.
  * @return {{width: number, height: number, widths: Array<number>, heights: Array<number>, lineWidths: Array<number>}}} Text metrics.
  */
-export function getTextDimensions(baseStyle, chunks) {
+export function getTextDimensions(baseStyle: TextState, chunks: string[]): {width: number, height: number, widths: number[], heights: number[], lineWidths: number[]} {
   const widths = [];
   const heights = [];
   const lineWidths = [];
@@ -399,7 +398,7 @@ export function getTextDimensions(baseStyle, chunks) {
  * @param {number} offsetX X offset.
  * @param {number} offsetY Y offset.
  */
-export function rotateAtOffset(context, rotation, offsetX, offsetY) {
+export function rotateAtOffset(context: CanvasRenderingContext2D, rotation: number, offsetX: number, offsetY: number): void {
   if (rotation !== 0) {
     context.translate(offsetX, offsetY);
     context.rotate(rotation);
@@ -421,18 +420,18 @@ export function rotateAtOffset(context, rotation, offsetX, offsetY) {
  * @param {import("../size").Size} scale Scale.
  */
 export function drawImageOrLabel(
-  context,
-  transform,
-  opacity,
-  labelOrImage,
-  originX,
-  originY,
-  w,
-  h,
-  x,
-  y,
-  scale
-) {
+  context: CanvasRenderingContext2D,
+  transform: Transform | null,
+  opacity: number,
+  labelOrImage: Label | HTMLCanvasElement | HTMLImageElement | HTMLVideoElement,
+  originX: number,
+  originY: number,
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+  scale: Size
+): void {
   context.save();
 
   if (opacity !== 1) {
@@ -442,19 +441,17 @@ export function drawImageOrLabel(
     context.setTransform.apply(context, transform);
   }
 
-  if (/** @type {*} */ (labelOrImage).contextInstructions) {
+  if (/** @type {*} */ (<any>labelOrImage).contextInstructions) {
     // label
     context.translate(x, y);
     context.scale(scale[0], scale[1]);
-    executeLabelInstructions(/** @type {Label} */ (labelOrImage), context);
+    executeLabelInstructions(<Label>labelOrImage, context);
   } else if (scale[0] < 0 || scale[1] < 0) {
     // flipped image
     context.translate(x, y);
     context.scale(scale[0], scale[1]);
     context.drawImage(
-      /** @type {HTMLCanvasElement|HTMLImageElement|HTMLVideoElement} */ (
-        labelOrImage
-      ),
+      <HTMLCanvasElement|HTMLImageElement|HTMLVideoElement>labelOrImage,
       originX,
       originY,
       w,
@@ -467,9 +464,7 @@ export function drawImageOrLabel(
   } else {
     // if image not flipped translate and scale can be avoided
     context.drawImage(
-      /** @type {HTMLCanvasElement|HTMLImageElement|HTMLVideoElement} */ (
-        labelOrImage
-      ),
+      <HTMLCanvasElement|HTMLImageElement|HTMLVideoElement>labelOrImage,
       originX,
       originY,
       w,
@@ -488,7 +483,7 @@ export function drawImageOrLabel(
  * @param {Label} label Label.
  * @param {CanvasRenderingContext2D} context Context.
  */
-function executeLabelInstructions(label, context) {
+function executeLabelInstructions(label: Label, context: CanvasRenderingContext2D): void {
   const contextInstructions = label.contextInstructions;
   for (let i = 0, ii = contextInstructions.length; i < ii; i += 2) {
     if (Array.isArray(contextInstructions[i + 1])) {

@@ -268,7 +268,7 @@ class CanvasImageBuilder extends CanvasBuilder {
    * @param {import("../../style/Image").default} imageStyle Image style.
    * @param {Object} [sharedData] Shared data.
    */
-  public setImageStyle(imageStyle: ImageStyle, sharedData?: Object): void {
+  public setImageStyle(imageStyle: ImageStyle, sharedData?: {[key: number]: any}): void {
     const anchor = imageStyle.getAnchor();
     const size = imageStyle.getSize();
     const origin = imageStyle.getOrigin();

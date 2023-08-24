@@ -115,7 +115,7 @@ class Stroke {
    * @return {CanvasLineCap|undefined} Line cap.
    * @api
    */
-  getLineCap() {
+  public getLineCap(): CanvasLineCap {
     return this.lineCap_;
   }
 
@@ -124,7 +124,7 @@ class Stroke {
    * @return {Array<number>|null} Line dash.
    * @api
    */
-  getLineDash() {
+  public getLineDash(): number[] {
     return this.lineDash_;
   }
 
@@ -133,7 +133,7 @@ class Stroke {
    * @return {number|undefined} Line dash offset.
    * @api
    */
-  getLineDashOffset() {
+  public getLineDashOffset(): number {
     return this.lineDashOffset_;
   }
 
@@ -142,7 +142,7 @@ class Stroke {
    * @return {CanvasLineJoin|undefined} Line join.
    * @api
    */
-  getLineJoin() {
+  public getLineJoin(): CanvasLineJoin {
     return this.lineJoin_;
   }
 
@@ -151,7 +151,7 @@ class Stroke {
    * @return {number|undefined} Miter limit.
    * @api
    */
-  getMiterLimit() {
+  public getMiterLimit(): number {
     return this.miterLimit_;
   }
 
@@ -160,7 +160,7 @@ class Stroke {
    * @return {number|undefined} Width.
    * @api
    */
-  getWidth() {
+  public getWidth(): number {
     return this.width_;
   }
 
@@ -170,7 +170,7 @@ class Stroke {
    * @param {import("../color").Color|import("../colorlike").ColorLike} color Color.
    * @api
    */
-  setColor(color) {
+  public setColor(color: Color | ColorLike): void {
     this.color_ = color;
   }
 
@@ -180,7 +180,7 @@ class Stroke {
    * @param {CanvasLineCap|undefined} lineCap Line cap.
    * @api
    */
-  setLineCap(lineCap) {
+  public setLineCap(lineCap?: CanvasLineCap): void {
     this.lineCap_ = lineCap;
   }
 
@@ -190,7 +190,7 @@ class Stroke {
    * @param {Array<number>|null} lineDash Line dash.
    * @api
    */
-  setLineDash(lineDash) {
+  public setLineDash(lineDash?: number[]): void {
     this.lineDash_ = lineDash;
   }
 
@@ -200,7 +200,7 @@ class Stroke {
    * @param {number|undefined} lineDashOffset Line dash offset.
    * @api
    */
-  setLineDashOffset(lineDashOffset) {
+  public setLineDashOffset(lineDashOffset?: number): void {
     this.lineDashOffset_ = lineDashOffset;
   }
 
@@ -210,7 +210,7 @@ class Stroke {
    * @param {CanvasLineJoin|undefined} lineJoin Line join.
    * @api
    */
-  setLineJoin(lineJoin) {
+  public setLineJoin(lineJoin: CanvasLineJoin): void {
     this.lineJoin_ = lineJoin;
   }
 
@@ -220,7 +220,7 @@ class Stroke {
    * @param {number|undefined} miterLimit Miter limit.
    * @api
    */
-  setMiterLimit(miterLimit) {
+  public setMiterLimit(miterLimit?: number): void {
     this.miterLimit_ = miterLimit;
   }
 

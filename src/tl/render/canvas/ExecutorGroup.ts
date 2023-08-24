@@ -22,7 +22,7 @@ import RBush_ from "rbush";
  * @const
  * @type {Array<import("../canvas").BuilderType>}
  */
-const ORDER = ['Polygon', 'Circle', 'LineString', 'Image', 'Text', 'Default'];
+const ORDER: string[] = ['Polygon', 'Circle', 'LineString', 'Image', 'Text', 'Default'];
 
 class ExecutorGroup {
   private maxExtent_: Extent;
@@ -216,7 +216,7 @@ class ExecutorGroup {
     /**
      * @type {import("../../extent").Extent}
      */
-    let hitExtent;
+    let hitExtent: Extent;
     if (this.renderBuffer_ !== undefined) {
       hitExtent = createEmpty();
       extendCoordinate(hitExtent, coordinate);
@@ -266,10 +266,10 @@ class ExecutorGroup {
     }
 
     /** @type {Array<number>} */
-    const zs = Object.keys(this.executorsByZIndex_).map(Number);
+    const zs: number[] = Object.keys(this.executorsByZIndex_).map(Number);
     zs.sort(ascending);
 
-    let i, j, executors, executor, result;
+    let i: number, j: number, executors: { [x: string]: any; }, executor: { executeHitDetection: (arg0: CanvasRenderingContext2D, arg1: Transform, arg2: number, arg3: (feature: FeatureLike, geometry: SimpleGeometry) => Type, arg4: Extent) => any; }, result: Type;
     for (i = zs.length - 1; i >= 0; --i) {
       const zIndexKey = zs[i].toString();
       executors = this.executorsByZIndex_[zIndexKey];
@@ -338,7 +338,7 @@ class ExecutorGroup {
     declutterTree?: RBush_<any>
   ): void {
     /** @type {Array<number>} */
-    const zs = Object.keys(this.executorsByZIndex_).map(Number);
+    const zs: number[] = Object.keys(this.executorsByZIndex_).map(Number);
     zs.sort(ascending);
 
     // setup clipping so that the parts of over-simplified geometries are not
@@ -349,7 +349,7 @@ class ExecutorGroup {
     }
 
     builderTypes = builderTypes ? builderTypes : ORDER;
-    let i, ii, j, jj, replays, replay;
+    let i: number, ii: number, j: number, jj: number, replays: { [x: string]: any; }, replay: { execute: (arg0: CanvasRenderingContext2D, arg1: number, arg2: Transform, arg3: number, arg4: boolean, arg5: RBush_<any>) => void; };
     if (declutterTree) {
       zs.reverse();
     }
@@ -381,13 +381,13 @@ class ExecutorGroup {
 /**
  * This cache is used to store arrays of indexes for calculated pixel circles
  * to increase performance.
- * It is a static property to allow each Replaygroup to access it.
+ * It is a static property to allow each Replay group to access it.
  * @type {Object<number, Array<number>>}
  */
 const circlePixelIndexArrayCache: {[key: number]: number[]} = {};
 
 /**
- * This methods creates an array with indexes of all pixels within a circle,
+ * Those methods create an array with indexes of all pixels within a circle,
  * ordered by how close they are to the center.
  * A cache is used to increase performance.
  * @param {number} radius Radius.

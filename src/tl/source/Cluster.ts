@@ -6,54 +6,29 @@ import EventType from '../events/EventType';
 import Feature from '../Feature';
 import Point from '../geom/Point';
 import VectorSource from './Vector';
-import {add as addCoordinate, scale as scaleCoordinate} from '../coordinate';
+import {add as addCoordinate, Coordinate, scale as scaleCoordinate} from '../coordinate';
 import {assert} from '../asserts';
 import {
   buffer,
   createEmpty,
-  createOrUpdateFromCoordinate,
+  createOrUpdateFromCoordinate, Extent,
   getCenter,
 } from '../extent';
 import {getUid} from '../util';
+import {AttributionLike} from "./Source";
+import Projection from "../proj/Projection";
 
-/**
- * @typedef {Object} Options
- * @property {import("./Source").AttributionLike} [attributions] Attributions.
- * @property {number} [distance=20] Distance in pixels within which features will
- * be clustered together.
- * @property {number} [minDistance=0] Minimum distance in pixels between clusters.
- * Will be capped at the configured distance.
- * By default no minimum distance is guaranteed. This config can be used to avoid
- * overlapping icons. As a tradoff, the cluster feature's position will no longer be
- * the center of all its features.
- * @property {function(Feature):Point} [geometryFunction]
- * Function that takes an {@link module:tl/Feature~Feature} as argument and returns an
- * {@link module:tl/geom/Point~Point} as cluster calculation point for the feature. When a
- * feature should not be considered for clustering, the function should return
- * `null`. The default, which works when the underlying source contains point
- * features only, is
- * ```js
- * function(feature) {
- *   return feature.getGeometry();
- * }
- * ```
- * See {@link module:tl/geom/Polygon~Polygon#getInteriorPoint} for a way to get a cluster
- * calculation point for polygons.
- * @property {function(Point, Array<Feature>):Feature} [createCluster]
- * Function that takes the cluster's center {@link module:tl/geom/Point~Point} and an array
- * of {@link module:tl/Feature~Feature} included in this cluster. Must return a
- * {@link module:tl/Feature~Feature} that will be used to render. Default implementation is:
- * ```js
- * function(point, features) {
- *   return new Feature({
- *     geometry: point,
- *     features: features
- *   });
- * }
- * ```
- * @property {VectorSource} [source=null] Source.
- * @property {boolean} [wrapX=true] Whether to wrap the world horizontally.
- */
+export type GeometryFunction = (feature: Feature) => Point;
+
+export interface ClusterOptions {
+  attributions?: AttributionLike;
+  distance?: number;
+  minDistance?: number;
+  geometryFunction?: GeometryFunction;
+  createCluster?: (point: Point, features: Feature[]) => Feature;
+  source?: VectorSource;
+  wrapX?: boolean;
+}
 
 /**
  * @classdesc
@@ -67,10 +42,19 @@ import {getUid} from '../util';
  * @api
  */
 class Cluster extends VectorSource {
+  protected resolution?: number;
+  protected distance: number;
+  protected minDistance: number;
+  protected interpolationRatio: number;
+  protected features: Feature[];
+  protected geometryFunction: GeometryFunction;
+  private createCustomCluster_: (point: Point, features: Feature[]) => Feature;
+  protected source?: VectorSource;
+  private boundRefresh_: any;
   /**
    * @param {Options} options Cluster options.
    */
-  constructor(options) {
+  constructor(options: ClusterOptions) {
     super({
       attributions: options.attributions,
       wrapX: options.wrapX,
@@ -113,8 +97,8 @@ class Cluster extends VectorSource {
      */
     this.geometryFunction =
       options.geometryFunction ||
-      function (feature) {
-        const geometry = /** @type {Point} */ (feature.getGeometry());
+      function (feature: Feature) {
+        const geometry = /** @type {Point} */ (<Point>feature.getGeometry());
         assert(!geometry || geometry.getType() === 'Point', 10); // The default `geometryFunction` can only handle `Point` or null geometries
         return geometry;
       };
@@ -145,7 +129,7 @@ class Cluster extends VectorSource {
    * @param {boolean} [fast] Skip dispatching of {@link module:tl/source/VectorEventType~VectorEventType#removefeature} events.
    * @api
    */
-  clear(fast) {
+  public clear(fast?: boolean): void {
     this.features.length = 0;
     super.clear(fast);
   }
@@ -155,7 +139,7 @@ class Cluster extends VectorSource {
    * @return {number} Distance.
    * @api
    */
-  getDistance() {
+  public getDistance(): number {
     return this.distance;
   }
 
@@ -164,7 +148,7 @@ class Cluster extends VectorSource {
    * @return {VectorSource|null} Source.
    * @api
    */
-  getSource() {
+  public getSource(): VectorSource {
     return this.source;
   }
 
@@ -173,7 +157,7 @@ class Cluster extends VectorSource {
    * @param {number} resolution Resolution.
    * @param {import("../proj/Projection").default} projection Projection.
    */
-  loadFeatures(extent, resolution, projection) {
+  public loadFeatures(extent: Extent, resolution: number, projection: Projection): void {
     this.source.loadFeatures(extent, resolution, projection);
     if (resolution !== this.resolution) {
       this.resolution = resolution;
@@ -186,7 +170,7 @@ class Cluster extends VectorSource {
    * @param {number} distance The distance in pixels.
    * @api
    */
-  setDistance(distance) {
+  public setDistance(distance: number): void {
     this.updateDistance(distance, this.minDistance);
   }
 
@@ -196,7 +180,7 @@ class Cluster extends VectorSource {
    * @param {number} minDistance The minimum distance in pixels.
    * @api
    */
-  setMinDistance(minDistance) {
+  public setMinDistance(minDistance: number): void {
     this.updateDistance(this.distance, minDistance);
   }
 
@@ -205,7 +189,7 @@ class Cluster extends VectorSource {
    * @return {number} The minimum distance in pixels.
    * @api
    */
-  getMinDistance() {
+  public getMinDistance(): number {
     return this.minDistance;
   }
 
@@ -214,7 +198,7 @@ class Cluster extends VectorSource {
    * @param {VectorSource|null} source The new source for this instance.
    * @api
    */
-  setSource(source) {
+  public setSource(source: VectorSource): void {
     if (this.source) {
       this.source.removeEventListener(EventType.CHANGE, this.boundRefresh_);
     }
@@ -228,7 +212,7 @@ class Cluster extends VectorSource {
   /**
    * Handle the source changing.
    */
-  refresh() {
+  public refresh(): void {
     this.clear();
     this.cluster();
     this.addFeatures(this.features);
@@ -239,7 +223,7 @@ class Cluster extends VectorSource {
    * @param {number} distance The new distance.
    * @param {number} minDistance The new minimum distance.
    */
-  updateDistance(distance, minDistance) {
+  public updateDistance(distance: number, minDistance: number): void {
     const ratio =
       distance === 0 ? 0 : Math.min(minDistance, distance) / distance;
     const changed =
@@ -255,7 +239,7 @@ class Cluster extends VectorSource {
   /**
    * @protected
    */
-  cluster() {
+  protected cluster(): void {
     if (this.resolution === undefined || !this.source) {
       return;
     }
@@ -297,8 +281,8 @@ class Cluster extends VectorSource {
    * @return {Feature} The cluster feature.
    * @protected
    */
-  createCluster(features, extent) {
-    const centroid = [0, 0];
+  protected createCluster(features: Feature[], extent: Extent): Feature {
+    const centroid: Coordinate = [0, 0];
     for (let i = features.length - 1; i >= 0; --i) {
       const geometry = this.geometryFunction(features[i]);
       if (geometry) {
