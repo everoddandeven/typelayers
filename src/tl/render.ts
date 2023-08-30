@@ -69,7 +69,7 @@ export interface ToContextOptions {
  * @return {CanvasImmediateRenderer} Canvas Immediate.
  * @api
  */
-export function toContext(context: CanvasRenderingContext2D, options: ToContextOptions): CanvasImmediateRenderer {
+export function toContext(context: CanvasRenderingContext2D, options?: ToContextOptions): CanvasImmediateRenderer {
   const canvas = context.canvas;
   options = options ? options : {};
   const pixelRatio = options.pixelRatio || DEVICE_PIXEL_RATIO;

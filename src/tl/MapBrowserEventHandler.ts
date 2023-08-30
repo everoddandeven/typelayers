@@ -8,14 +8,29 @@ import MapBrowserEventType from './MapBrowserEventType';
 import PointerEventType from './pointer/EventType';
 import Target from './events/Target';
 import {PASSIVE_EVENT_LISTENERS} from './has';
-import {listen, unlistenByKey} from './events';
+import {EventsKey, listen, unlistenByKey} from './events';
+import Map from './Map';
 
 class MapBrowserEventHandler extends Target {
+  private map_: Map;
+  private clickTimeoutId_: ReturnType<typeof setTimeout>;
+  private emulateClicks_: boolean;
+  private dragging_: boolean;
+  private dragListenerKeys_: EventsKey[];
+  private moveTolerance_: number;
+  private down_: PointerEvent;
+  private activePointers_: PointerEvent[];
+  private trackedTouches_: { [key: number]: Event };
+  private element_: HTMLElement;
+  private pointerdownListenerKey_: EventsKey;
+  private originalPointerMoveEvent_: PointerEvent;
+  private relayedListenerKey_: EventsKey;
+  private boundHandleTouchMove_: any;
   /**
    * @param {import("./Map").default} map The map with the viewport to listen to events on.
    * @param {number} [moveTolerance] The minimal distance the pointer must travel to trigger a move.
    */
-  constructor(map, moveTolerance) {
+  constructor(map: Map, moveTolerance?: number) {
     super(map);
 
     /**
@@ -29,7 +44,7 @@ class MapBrowserEventHandler extends Target {
      * @type {ReturnType<typeof setTimeout>}
      * @private
      */
-    this.clickTimeoutId_;
+    this.clickTimeoutId_ = null;
 
     /**
      * Emulate dblclick and singleclick. Will be true when only one pointer is active.
@@ -44,7 +59,7 @@ class MapBrowserEventHandler extends Target {
     this.dragging_ = false;
 
     /**
-     * @type {!Array<import("./events").EventsKey>}
+     * @type {EventsKey[]}
      * @private
      */
     this.dragListenerKeys_ = [];
@@ -63,7 +78,7 @@ class MapBrowserEventHandler extends Target {
      */
     this.down_ = null;
 
-    const element = this.map_.getViewport();
+    const element: HTMLElement = this.map_.getViewport();
 
     /**
      * @type {Array<PointerEvent>}
@@ -80,7 +95,7 @@ class MapBrowserEventHandler extends Target {
     this.element_ = element;
 
     /**
-     * @type {?import("./events").EventsKey}
+     * @type {EventsKey}
      * @private
      */
     this.pointerdownListenerKey_ = listen(
@@ -94,7 +109,7 @@ class MapBrowserEventHandler extends Target {
      * @type {PointerEvent}
      * @private
      */
-    this.originalPointerMoveEvent_;
+    this.originalPointerMoveEvent_ = null;
 
     /**
      * @type {?import("./events").EventsKey}
@@ -124,7 +139,7 @@ class MapBrowserEventHandler extends Target {
    * event.
    * @private
    */
-  emulateClick_(pointerEvent) {
+  private emulateClick_(pointerEvent: PointerEvent): void {
     let newEvent = new MapBrowserEvent(
       MapBrowserEventType.CLICK,
       this.map_,
@@ -162,7 +177,7 @@ class MapBrowserEventHandler extends Target {
    * event.
    * @private
    */
-  updateActivePointers_(pointerEvent) {
+  private updateActivePointers_(pointerEvent: PointerEvent): void {
     const event = pointerEvent;
     const id = event.pointerId;
 
@@ -187,7 +202,7 @@ class MapBrowserEventHandler extends Target {
     ) {
       this.trackedTouches_[id] = event;
     }
-    this.activePointers_ = Object.values(this.trackedTouches_);
+    this.activePointers_ = <PointerEvent[]>Object.values(this.trackedTouches_);
   }
 
   /**
@@ -195,7 +210,7 @@ class MapBrowserEventHandler extends Target {
    * event.
    * @private
    */
-  handlePointerUp_(pointerEvent) {
+  private handlePointerUp_(pointerEvent: PointerEvent): void {
     this.updateActivePointers_(pointerEvent);
     const newEvent = new MapBrowserEvent(
       MapBrowserEventType.POINTERUP,
@@ -236,7 +251,7 @@ class MapBrowserEventHandler extends Target {
    * @return {boolean} If the left mouse button was pressed.
    * @private
    */
-  isMouseActionButton_(pointerEvent) {
+  private isMouseActionButton_(pointerEvent: PointerEvent): boolean {
     return pointerEvent.button === 0;
   }
 
@@ -245,7 +260,7 @@ class MapBrowserEventHandler extends Target {
    * event.
    * @private
    */
-  handlePointerDown_(pointerEvent) {
+  private handlePointerDown_(pointerEvent: PointerEvent): void {
     this.emulateClicks_ = this.activePointers_.length === 0;
     this.updateActivePointers_(pointerEvent);
     const newEvent = new MapBrowserEvent(
@@ -312,7 +327,7 @@ class MapBrowserEventHandler extends Target {
    * event.
    * @private
    */
-  handlePointerMove_(pointerEvent) {
+  private handlePointerMove_(pointerEvent: PointerEvent): void {
     // Between pointerdown and pointerup, pointermove events are triggered.
     // To avoid a 'false' touchmove event to be dispatched, we test if the pointer
     // moved a significant distance.
@@ -337,7 +352,7 @@ class MapBrowserEventHandler extends Target {
    * event.
    * @private
    */
-  relayMoveEvent_(pointerEvent) {
+  private relayMoveEvent_(pointerEvent: PointerEvent): void {
     this.originalPointerMoveEvent_ = pointerEvent;
     const dragging = !!(this.down_ && this.isMoving_(pointerEvent));
     this.dispatchEvent(
@@ -354,11 +369,11 @@ class MapBrowserEventHandler extends Target {
    * Flexible handling of a `touch-action: none` css equivalent: because calling
    * `preventDefault()` on a `pointermove` event does not stop native page scrolling
    * and zooming, we also listen for `touchmove` and call `preventDefault()` on it
-   * when an interaction (currently `DragPan` handles the event.
+   * when an interaction currently `DragPan` handles the event.
    * @param {TouchEvent} event Event.
    * @private
    */
-  handleTouchMove_(event) {
+  private handleTouchMove_(event: TouchEvent): void {
     // Due to https://github.com/mpizenberg/elm-pep/issues/2, `this.originalPointerMoveEvent_`
     // may not be initialized yet when we get here on a platform without native pointer events,
     // when elm-pep is used as pointer events polyfill.
@@ -377,7 +392,7 @@ class MapBrowserEventHandler extends Target {
    * @return {boolean} Is moving.
    * @private
    */
-  isMoving_(pointerEvent) {
+  private isMoving_(pointerEvent: PointerEvent): boolean {
     return (
       this.dragging_ ||
       Math.abs(pointerEvent.clientX - this.down_.clientX) >
@@ -389,7 +404,7 @@ class MapBrowserEventHandler extends Target {
   /**
    * Clean up.
    */
-  disposeInternal() {
+  protected disposeInternal(): void {
     if (this.relayedListenerKey_) {
       unlistenByKey(this.relayedListenerKey_);
       this.relayedListenerKey_ = null;

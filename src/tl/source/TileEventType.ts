@@ -5,13 +5,13 @@
 /**
  * @enum {string}
  */
-export default {
+export enum TileEventType {
   /**
    * Triggered when a tile starts loading.
    * @event module:tl/source/Tile.TileSourceEvent#tileloadstart
    * @api
    */
-  TILELOADSTART: 'tileloadstart',
+  TILELOADSTART= 'tileloadstart',
 
   /**
    * Triggered when a tile finishes loading, either when its data is loaded,
@@ -19,7 +19,7 @@ export default {
    * @event module:tl/source/Tile.TileSourceEvent#tileloadend
    * @api
    */
-  TILELOADEND: 'tileloadend',
+  TILELOADEND = 'tileloadend',
 
   /**
    * Triggered if tile loading results in an error. Note that this is not the
@@ -28,9 +28,9 @@ export default {
    * @event module:tl/source/Tile.TileSourceEvent#tileloaderror
    * @api
    */
-  TILELOADERROR: 'tileloaderror',
-};
+  TILELOADERROR = 'tileloaderror',
+}
 
-/**
- * @typedef {'tileloadstart'|'tileloadend'|'tileloaderror'} TileSourceEventTypes
- */
+export default TileEventType;
+
+export type TileSourceEventTypes = 'tileloadstart' | 'tileloadend' | 'tileloaderror';

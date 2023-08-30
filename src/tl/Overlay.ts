@@ -109,9 +109,9 @@ class Overlay extends BaseObject {
   protected rendered: { transform_: string, visible: boolean };
   protected mapPostrenderListenerKey?: EventsKey;
 
-  public on: OverlayOnSignature<EventsKey>;
-  public once: OverlayOnSignature<EventsKey>;
-  public un: OverlayOnSignature<void>;
+  public on?: OverlayOnSignature<EventsKey>;
+  public once?: OverlayOnSignature<EventsKey>;
+  public un?: OverlayOnSignature<void>;
 
   constructor(options: OverlayOptions) {
     super();
@@ -119,17 +119,17 @@ class Overlay extends BaseObject {
     /***
      * @type {OverlayOnSignature<import("./events").EventsKey>}
      */
-    this.on;
+    this.on = null;
 
     /***
      * @type {OverlayOnSignature<import("./events").EventsKey>}
      */
-    this.once;
+    this.once = null;
 
     /***
      * @type {OverlayOnSignature<void>}
      */
-    this.un;
+    this.un = null;
 
     /**
      * @protected

@@ -3,14 +3,17 @@
  */
 import {assert} from './asserts';
 import {modulo} from './math';
-import {hash as tileCoordHash} from './tilecoord';
+import {hash as tileCoordHash, TileCoord} from './tilecoord';
+import TileGrid from "./tilegrid/TileGrid";
+import {UrlFunction} from "./Tile";
+import Projection from "./proj/Projection";
 
 /**
  * @param {string} template Template.
  * @param {import("./tilegrid/TileGrid").default} tileGrid Tile grid.
  * @return {import("./Tile").UrlFunction} Tile URL function.
  */
-export function createFromTemplate(template, tileGrid) {
+export function createFromTemplate(template: string, tileGrid: TileGrid): UrlFunction {
   const zRegEx = /\{z\}/g;
   const xRegEx = /\{x\}/g;
   const yRegEx = /\{y\}/g;
@@ -46,7 +49,7 @@ export function createFromTemplate(template, tileGrid) {
  * @param {import("./tilegrid/TileGrid").default} tileGrid Tile grid.
  * @return {import("./Tile").UrlFunction} Tile URL function.
  */
-export function createFromTemplates(templates, tileGrid) {
+export function createFromTemplates(templates: string[], tileGrid: TileGrid): UrlFunction {
   const len = templates.length;
   const tileUrlFunctions = new Array(len);
   for (let i = 0; i < len; ++i) {
@@ -59,7 +62,7 @@ export function createFromTemplates(templates, tileGrid) {
  * @param {Array<import("./Tile").UrlFunction>} tileUrlFunctions Tile URL Functions.
  * @return {import("./Tile").UrlFunction} Tile URL function.
  */
-export function createFromTileUrlFunctions(tileUrlFunctions) {
+export function createFromTileUrlFunctions(tileUrlFunctions: UrlFunction[]): UrlFunction {
   if (tileUrlFunctions.length === 1) {
     return tileUrlFunctions[0];
   }
@@ -70,7 +73,7 @@ export function createFromTileUrlFunctions(tileUrlFunctions) {
      * @param {import("./proj/Projection").default} projection Projection.
      * @return {string|undefined} Tile URL.
      */
-    function (tileCoord, pixelRatio, projection) {
+    function (tileCoord: TileCoord, pixelRatio: number, projection: Projection): string | undefined {
       if (!tileCoord) {
         return undefined;
       }
@@ -87,7 +90,7 @@ export function createFromTileUrlFunctions(tileUrlFunctions) {
  * @param {import("./proj/Projection").default} projection Projection.
  * @return {string|undefined} Tile URL.
  */
-export function nullTileUrlFunction(tileCoord, pixelRatio, projection) {
+export function nullTileUrlFunction(tileCoord: TileCoord, pixelRatio: number, projection: Projection): string | undefined {
   return undefined;
 }
 
@@ -95,7 +98,7 @@ export function nullTileUrlFunction(tileCoord, pixelRatio, projection) {
  * @param {string} url URL.
  * @return {Array<string>} Array of urls.
  */
-export function expandUrl(url) {
+export function expandUrl(url: string): string[] {
   const urls = [];
   let match = /\{([a-z])-([a-z])\}/.exec(url);
   if (match) {

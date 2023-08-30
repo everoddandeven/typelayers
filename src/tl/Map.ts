@@ -1052,7 +1052,7 @@ class Map extends BaseObject {
    * @return {HTMLElement} Viewport.
    * @api
    */
-  getViewport() {
+  public getViewport(): HTMLElement {
     return this.viewport_;
   }
 

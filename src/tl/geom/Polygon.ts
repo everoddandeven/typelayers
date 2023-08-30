@@ -427,7 +427,7 @@ export default class Polygon extends SimpleGeometry {
  * @return {Polygon} The "circular" polygon.
  * @api
  */
-export function circular(center: Coordinate, radius: number, n: number, sphereRadius: number): Polygon {
+export function circular(center: Coordinate, radius: number, n?: number, sphereRadius?: number): Polygon {
   n = n ? n : 32;
   /** @type {Array<number>} */
   const flatCoordinates: FlatCoordinates = [];

@@ -60,7 +60,7 @@ import {
   toEPSG4326,
 } from './proj/epsg3857';
 import {PROJECTIONS as EPSG4326_PROJECTIONS} from './proj/epsg4326';
-import {METERS_PER_UNIT} from './proj/Units';
+import {METERS_PER_UNIT, Units} from './proj/Units';
 import {
   add as addProj,
   clear as clearProj,
@@ -118,7 +118,7 @@ export function disableCoordinateWarning(disable = true): void {
  * @return {Array<number>} Output coordinate array (new array, same coordinate
  *     values).
  */
-export function cloneTransform(input, output) {
+export function cloneTransform(input: number[], output: number[]): number[] {
   if (output !== undefined) {
     for (let i = 0, ii = input.length; i < ii; ++i) {
       output[i] = input[i];
@@ -135,7 +135,7 @@ export function cloneTransform(input, output) {
  * @param {Array<number>} [output] Output array of coordinate values.
  * @return {Array<number>} Input coordinate array (same array as input).
  */
-export function identityTransform(input, output) {
+export function identityTransform(input: number[], output: number[]): number[] {
   if (output !== undefined && input !== output) {
     for (let i = 0, ii = input.length; i < ii; ++i) {
       output[i] = input[i];
@@ -152,7 +152,7 @@ export function identityTransform(input, output) {
  * @param {Projection} projection Projection instance.
  * @api
  */
-export function addProjection(projection) {
+export function addProjection(projection: Projection): void {
   addProj(projection.getCode(), projection);
   addTransformFunc(projection, projection, cloneTransform);
 }
@@ -160,7 +160,7 @@ export function addProjection(projection) {
 /**
  * @param {Array<Projection>} projections Projections.
  */
-export function addProjections(projections) {
+export function addProjections(projections: Projection[]): void {
   projections.forEach(addProjection);
 }
 
@@ -173,7 +173,7 @@ export function addProjections(projections) {
  * @return {Projection|null} Projection object, or null if not in list.
  * @api
  */
-export function get(projectionLike) {
+export function get(projectionLike: ProjectionLike): Projection | null {
   return typeof projectionLike === 'string'
     ? getProj(/** @type {string} */ (projectionLike))
     : /** @type {Projection} */ (projectionLike) || null;
@@ -199,7 +199,7 @@ export function get(projectionLike) {
  * @return {number} Point resolution.
  * @api
  */
-export function getPointResolution(projection, resolution, point, units) {
+export function getPointResolution(projection: ProjectionLike, resolution: number, point: Coordinate, units?: Units) {
   projection = get(projection);
   let pointResolution;
   const getter = projection.getPointResolutionFunc();
@@ -737,7 +737,7 @@ export function createSafeCoordinateTransform(sourceProj, destProj, transform) {
  * by when this module is executed and should only need to be called again after
  * `clearAllProjections()` is called (e.g. in tests).
  */
-export function addCommon() {
+export function addCommon(): void {
   // Add transformations that don't alter coordinates to convert within set of
   // projections with equal meaning.
   addEquivalentProjections(EPSG3857_PROJECTIONS);

@@ -44,6 +44,4 @@ export enum MapEventType {
 
 export default MapEventType;
 
-/***
- * @typedef {'postrender'|'movestart'|'moveend'|'loadstart'|'loadend'} Types
- */
+export type MapEventTypes = 'postrender' | 'movestart' | 'moveend' | 'loadstart' | 'loadend';

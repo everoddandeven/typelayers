@@ -7,16 +7,19 @@ import {
   ValueTypes,
   expressionToGlsl,
   getStringNumberEquivalent,
-  uniformNameForVariable,
+  uniformNameForVariable, ParsingContext,
 } from '../style/expressions';
-import {asArray} from '../color';
+import {asArray, Color} from '../color';
+import {LiteralStyle, SymbolType} from "../style/literal";
+import {UniformValue} from "./Helper";
+import {AttributeDefinitions, UniformDefinitions} from "../render/webgl/VectorStyleRenderer";
 
 /**
  * @param {import('../style/literal').SymbolType} type Symbol type
  * @param {string} sizeExpressionGlsl Size expression
  * @return {string} The GLSL opacity function
  */
-export function getSymbolOpacityGlslFunction(type, sizeExpressionGlsl) {
+export function getSymbolOpacityGlslFunction(type: SymbolType, sizeExpressionGlsl: string): string {
   switch (type) {
     case 'square':
     case 'image':
@@ -38,7 +41,7 @@ export function getSymbolOpacityGlslFunction(type, sizeExpressionGlsl) {
  * @param {import("../color").Color|string} color Color as array of numbers or string
  * @return {Array<number>} Vec2 array containing the color in compressed form
  */
-export function packColor(color) {
+export function packColor(color: Color | string): number[] {
   const array = asArray(color);
   const r = array[0] * 256;
   const g = array[1];
@@ -47,7 +50,7 @@ export function packColor(color) {
   return [r + g, b + a];
 }
 
-const UNPACK_COLOR_FN = `vec4 unpackColor(vec2 packedColor) {
+const UNPACK_COLOR_FN: string = `vec4 unpackColor(vec2 packedColor) {
   return fract(packedColor[1] / 256.0) * vec4(
     fract(floor(packedColor[0] / 256.0) / 256.0),
     fract(packedColor[0] / 256.0),
@@ -60,7 +63,7 @@ const UNPACK_COLOR_FN = `vec4 unpackColor(vec2 packedColor) {
  * @param {ValueTypes} type Value type
  * @return {1|2|3|4} The amount of components for this value
  */
-function getGlslSizeFromType(type) {
+function getGlslSizeFromType(type: ValueTypes): 1 | 2 | 3 | 4 {
   if (type === ValueTypes.COLOR) {
     return 2;
   }
@@ -74,7 +77,7 @@ function getGlslSizeFromType(type) {
  * @param {ValueTypes} type Value type
  * @return {'float'|'vec2'|'vec3'|'vec4'} The corresponding GLSL type for this value
  */
-function getGlslTypeFromType(type) {
+function getGlslTypeFromType(type: ValueTypes): string {
   const size = getGlslSizeFromType(type);
   if (size > 1) {
     return /** @type {'vec2'|'vec3'|'vec4'} */ (`vec${size}`);
@@ -90,12 +93,12 @@ function getGlslTypeFromType(type) {
  * @param {import("../style/expressions").ParsingContext} fragContext Fragment shader parsing context
  */
 function parseSymbolProperties(
-  style,
-  builder,
-  uniforms,
-  vertContext,
-  fragContext
-) {
+  style: LiteralStyle,
+  builder: ShaderBuilder,
+  uniforms: {[key: string]: UniformValue},
+  vertContext: ParsingContext,
+  fragContext: ParsingContext
+): void {
   if (!('symbol' in style)) {
     return;
   }
@@ -185,21 +188,21 @@ function parseSymbolProperties(
  * @param {import("../style/expressions").ParsingContext} fragContext Fragment shader parsing context
  */
 function parseStrokeProperties(
-  style,
-  builder,
-  uniforms,
-  vertContext,
-  fragContext
-) {
-  if ('stroke-color' in style) {
+  style: LiteralStyle,
+  builder: ShaderBuilder,
+  uniforms: {[key: string]: UniformValue},
+  vertContext: ParsingContext,
+  fragContext: ParsingContext
+): void {
+  if ('stroke-color' in style || 'strokeColor' in style) {
     builder.setStrokeColorExpression(
-      expressionToGlsl(fragContext, style['stroke-color'], ValueTypes.COLOR)
+      expressionToGlsl(fragContext, style.strokeColor, ValueTypes.COLOR)
     );
   }
 
-  if ('stroke-width' in style) {
+  if ('stroke-width' in style || 'strokeWidth' in style) {
     builder.setStrokeWidthExpression(
-      expressionToGlsl(vertContext, style['stroke-width'], ValueTypes.NUMBER)
+      expressionToGlsl(vertContext, style.strokeWidth, ValueTypes.NUMBER)
     );
   }
 }
@@ -212,25 +215,24 @@ function parseStrokeProperties(
  * @param {import("../style/expressions").ParsingContext} fragContext Fragment shader parsing context
  */
 function parseFillProperties(
-  style,
-  builder,
-  uniforms,
-  vertContext,
-  fragContext
-) {
-  if ('fill-color' in style) {
+  style: LiteralStyle,
+  builder: ShaderBuilder,
+  uniforms: {[key: string]: UniformValue},
+  vertContext: ParsingContext,
+  fragContext: ParsingContext
+): void {
+  if ('fill-color' in style || 'fillColor' in style) {
     builder.setFillColorExpression(
-      expressionToGlsl(fragContext, style['fill-color'], ValueTypes.COLOR)
+      expressionToGlsl(fragContext, style.fillColor, ValueTypes.COLOR)
     );
   }
 }
 
-/**
- * @typedef {Object} StyleParseResult
- * @property {ShaderBuilder} builder Shader builder pre-configured according to a given style
- * @property {import("../render/webgl/VectorStyleRenderer").UniformDefinitions} uniforms Uniform definitions
- * @property {import("../render/webgl/VectorStyleRenderer").AttributeDefinitions} attributes Attribute definitions
- */
+export interface StyleParseResult {
+  builder: ShaderBuilder;
+  uniforms: UniformDefinitions;
+  attributes: AttributeDefinitions;
+}
 
 /**
  * Parses a {@link import("../style/literal").LiteralStyle} object and returns a {@link ShaderBuilder}
@@ -243,7 +245,7 @@ function parseFillProperties(
  * @param {import("../style/literal").LiteralStyle} style Literal style.
  * @return {StyleParseResult} Result containing shader params, attributes and uniforms.
  */
-export function parseLiteralStyle(style) {
+export function parseLiteralStyle(style: LiteralStyle): StyleParseResult {
   /**
    * @type {import("../style/expressions").ParsingContext}
    */

@@ -2,14 +2,20 @@
  * @module tl/Geolocation
  */
 import BaseEvent from './events/Event';
-import BaseObject from './Object';
+import BaseObject, {ObjectEvent} from './Object';
 import {circular as circularPolygon} from './geom/Polygon';
 import {
   get as getProjection,
   getTransformFromProjections,
-  identityTransform,
+  identityTransform, ProjectionLike, TransformFunction,
 } from './proj';
 import {toRadians} from './math';
+import {ObjectEventTypes} from "./ObjectEventType";
+import {CombinedOnSignature, EventTypes, OnSignature} from "./Observable";
+import {EventsKey} from "./events";
+import {Coordinate} from "./coordinate";
+import {Polygon} from "./geom";
+import Projection from "./proj/Projection";
 
 /**
  * @enum {string}
@@ -30,24 +36,26 @@ const Property = {
 /**
  * @enum string
  */
-const GeolocationErrorType = {
+export enum GeolocationErrorType {
   /**
    * Triggered when a `GeolocationPositionError` occurs.
    * @event module:tl/Geolocation.GeolocationError#error
    * @api
    */
-  ERROR: 'error',
-};
+  ERROR = 'error',
+}
 
 /**
  * @classdesc
  * Events emitted on [GeolocationPositionError](https://developer.mozilla.org/en-US/docs/Web/API/GeolocationPositionError).
  */
 export class GeolocationError extends BaseEvent {
+  public code: number;
+  public message: string;
   /**
    * @param {GeolocationPositionError} error error object.
    */
-  constructor(error) {
+  constructor(error: GeolocationPositionError) {
     super(GeolocationErrorType.ERROR);
 
     /**
@@ -66,29 +74,32 @@ export class GeolocationError extends BaseEvent {
   }
 }
 
-/**
- * @typedef {Object} Options
- * @property {boolean} [tracking=false] Start Tracking right after
- * instantiation.
- * @property {PositionOptions} [trackingOptions] Tracking options.
- * See https://www.w3.org/TR/geolocation-API/#position_options_interface.
- * @property {import("./proj").ProjectionLike} [projection] The projection the position
- * is reported in.
- */
+export interface GeolocationOptions {
+  tracking?: boolean;
+  trackingOptions?: PositionOptions;
+  projection?: ProjectionLike;
+}
 
-/**
- * @typedef {import("./ObjectEventType").Types|'change:accuracy'|'change:accuracyGeometry'|'change:altitude'|
- *    'change:altitudeAccuracy'|'change:heading'|'change:position'|'change:projection'|'change:speed'|'change:tracking'|
- *    'change:trackingOptions'} GeolocationObjectEventTypes
- */
 
-/***
- * @template Return
- * @typedef {import("./Observable").OnSignature<GeolocationObjectEventTypes, import("./Object").ObjectEvent, Return> &
- *   import("./Observable").OnSignature<'error', GeolocationError, Return> &
- *   import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|GeolocationObjectEventTypes, Return> &
- *   import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event").default, Return>} GeolocationOnSignature
- */
+export type GeolocationObjectEventTypes =
+    ObjectEventTypes
+    | 'change:accuracy'
+    | 'change:accuracyGeometry'
+    | 'change:altitude'
+    |
+    'change:altitudeAccuracy'
+    | 'change:heading'
+    | 'change:position'
+    | 'change:projection'
+    | 'change:speed'
+    | 'change:tracking'
+    |
+    'change:trackingOptions';
+
+export type GeolocationOnSignature<Return> = OnSignature<GeolocationObjectEventTypes, ObjectEvent, Return> &
+    OnSignature<'error', GeolocationError, Return> &
+    CombinedOnSignature<EventTypes | GeolocationObjectEventTypes, Return> &
+    OnSignature<EventTypes, BaseEvent, Return>;
 
 /**
  * @classdesc
@@ -121,36 +132,44 @@ class Geolocation extends BaseObject {
   /**
    * @param {Options} [options] Options.
    */
-  constructor(options) {
+
+  public on?: GeolocationOnSignature<EventsKey>;
+  public once?: GeolocationOnSignature<EventsKey>;
+  public un?: GeolocationOnSignature<void>;
+  private position_?: Coordinate;
+  private transform_: TransformFunction;
+  private watchId_?: number;
+
+  constructor(options?: GeolocationOptions) {
     super();
 
     /***
-     * @type {GeolocationOnSignature<import("./events").EventsKey>}
+     * @type {GeolocationOnSignature<EventsKey>}
      */
-    this.on;
+    this.on = null;
 
     /***
-     * @type {GeolocationOnSignature<import("./events").EventsKey>}
+     * @type {GeolocationOnSignature<EventsKey>}
      */
-    this.once;
+    this.once = null;
 
     /***
      * @type {GeolocationOnSignature<void>}
      */
-    this.un;
+    this.un = null;
 
     options = options || {};
 
     /**
      * The unprojected (EPSG:4326) device position.
      * @private
-     * @type {?import("./coordinate").Coordinate}
+     * @type {?Coordinate}
      */
     this.position_ = null;
 
     /**
      * @private
-     * @type {import("./proj").TransformFunction}
+     * @type {TransformFunction}
      */
     this.transform_ = identityTransform;
 
@@ -176,7 +195,7 @@ class Geolocation extends BaseObject {
   /**
    * Clean up.
    */
-  disposeInternal() {
+  protected disposeInternal(): void {
     this.setTracking(false);
     super.disposeInternal();
   }
@@ -184,7 +203,7 @@ class Geolocation extends BaseObject {
   /**
    * @private
    */
-  handleProjectionChanged_() {
+  private handleProjectionChanged_(): void {
     const projection = this.getProjection();
     if (projection) {
       this.transform_ = getTransformFromProjections(
@@ -200,7 +219,7 @@ class Geolocation extends BaseObject {
   /**
    * @private
    */
-  handleTrackingChanged_() {
+  private handleTrackingChanged_(): void {
     if ('geolocation' in navigator) {
       const tracking = this.getTracking();
       if (tracking && this.watchId_ === undefined) {
@@ -220,7 +239,7 @@ class Geolocation extends BaseObject {
    * @private
    * @param {GeolocationPosition} position position event.
    */
-  positionChange_(position) {
+  private positionChange_(position: GeolocationPosition): void {
     const coords = position.coords;
     this.set(Property.ACCURACY, coords.accuracy);
     this.set(
@@ -254,7 +273,7 @@ class Geolocation extends BaseObject {
    * @private
    * @param {GeolocationPositionError} error error object.
    */
-  positionError_(error) {
+  private positionError_(error: GeolocationPositionError): void {
     this.dispatchEvent(new GeolocationError(error));
   }
 
@@ -265,8 +284,8 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  getAccuracy() {
-    return /** @type {number|undefined} */ (this.get(Property.ACCURACY));
+  public getAccuracy(): number | undefined {
+    return /** @type {number|undefined} */ (<number | undefined>this.get(Property.ACCURACY));
   }
 
   /**
@@ -275,7 +294,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  getAccuracyGeometry() {
+  public getAccuracyGeometry(): Polygon {
     return /** @type {?import("./geom/Polygon").default} */ (
       this.get(Property.ACCURACY_GEOMETRY) || null
     );
@@ -288,7 +307,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  getAltitude() {
+  public getAltitude(): number | undefined {
     return /** @type {number|undefined} */ (this.get(Property.ALTITUDE));
   }
 
@@ -299,7 +318,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  getAltitudeAccuracy() {
+  public getAltitudeAccuracy(): number | undefined {
     return /** @type {number|undefined} */ (
       this.get(Property.ALTITUDE_ACCURACY)
     );
@@ -313,7 +332,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  getHeading() {
+  public getHeading(): number | undefined {
     return /** @type {number|undefined} */ (this.get(Property.HEADING));
   }
 
@@ -324,7 +343,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  getPosition() {
+  public getPosition(): Coordinate | undefined {
     return /** @type {import("./coordinate").Coordinate|undefined} */ (
       this.get(Property.POSITION)
     );
@@ -337,7 +356,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  getProjection() {
+  public getProjection(): Projection | undefined {
     return /** @type {import("./proj/Projection").default|undefined} */ (
       this.get(Property.PROJECTION)
     );
@@ -350,7 +369,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  getSpeed() {
+  public getSpeed(): number | undefined {
     return /** @type {number|undefined} */ (this.get(Property.SPEED));
   }
 
@@ -360,7 +379,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  getTracking() {
+  public getTracking(): boolean {
     return /** @type {boolean} */ (this.get(Property.TRACKING));
   }
 
@@ -373,7 +392,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  getTrackingOptions() {
+  public getTrackingOptions(): PositionOptions | undefined {
     return /** @type {PositionOptions|undefined} */ (
       this.get(Property.TRACKING_OPTIONS)
     );
@@ -386,7 +405,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  setProjection(projection) {
+  public setProjection(projection: ProjectionLike): void {
     this.set(Property.PROJECTION, getProjection(projection));
   }
 
@@ -396,7 +415,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  setTracking(tracking) {
+  public setTracking(tracking: boolean): void {
     this.set(Property.TRACKING, tracking);
   }
 
@@ -409,7 +428,7 @@ class Geolocation extends BaseObject {
    * @observable
    * @api
    */
-  setTrackingOptions(options) {
+  public setTrackingOptions(options: PositionOptions): void {
     this.set(Property.TRACKING_OPTIONS, options);
   }
 }

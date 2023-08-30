@@ -16,7 +16,7 @@ class TileCache extends LRUCache<Tile> {
   /**
    * @param {!Object<string, boolean>} usedTiles Used tiles.
    */
-  expireCache(usedTiles) {
+  expireCache(usedTiles: {[key: string]: boolean}): void {
     while (this.canExpireCache()) {
       const tile = this.peekLast();
       if (tile.getKey() in usedTiles) {

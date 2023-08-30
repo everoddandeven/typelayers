@@ -56,6 +56,4 @@ export enum MapBrowserEventType {
 
 export default MapBrowserEventType;
 
-/***
- * @typedef {'singleclick'|'click'|'dblclick'|'pointerdrag'|'pointermove'} Types
- */
+export type MapBrowserEventTypes = 'singleclick' | 'click' | 'dblclick' | 'pointerdrag' | 'pointermove';

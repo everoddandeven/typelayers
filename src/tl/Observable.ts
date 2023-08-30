@@ -22,7 +22,7 @@ export type OnSignature<Type, EventClass, Return> = (type: Type, listener: (even
 export type CombinedOnSignature<Type, Return> = (type: Type, listener: (event: Event | BaseEvent) => any) => Return extends void ? void: Return[];
 
 export type EventTypes = 'change' | 'error';
-
+export type ObservableEventTypes = EventTypes;
 /***
  * @template Return
  * @typedef {OnSignature<EventTypes, import("./events/Event").default, Return> & CombinedOnSignature<EventTypes, Return>} ObservableOnSignature
@@ -46,9 +46,9 @@ abstract class Observable extends EventTarget {
 
   private revision_: number;
 
-  public on: ObservableOnSignature<EventsKey>;
-  public once: ObservableOnSignature<EventsKey>;
-  public un: ObservableOnSignature<void>;
+  public on?: ObservableOnSignature<EventsKey>;
+  public once?: ObservableOnSignature<EventsKey>;
+  public un?: ObservableOnSignature<void>;
 
   protected constructor() {
     super();

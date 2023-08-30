@@ -10,7 +10,7 @@ import {ceil, clamp, floor} from '../math';
 import {createOrUpdate, Extent, getTopLeft} from '../extent';
 import {createOrUpdate as createOrUpdateTileCoord, TileCoord} from '../tilecoord';
 import {intersectsLinearRing} from '../geom/flat/intersectsextent';
-import {isSorted, linearFindNearest} from '../array';
+import {isSorted, linearFindNearest, NearestDirectionFunction} from '../array';
 import {Size, toSize} from '../size';
 import {Coordinate, Coordinates} from "../coordinate";
 
@@ -78,7 +78,7 @@ class TileGrid {
     assert(
       isSorted(
         this.resolutions_,
-        function (a, b) {
+        function (a: number, b: number) {
           return b - a;
         },
         true
@@ -87,7 +87,7 @@ class TileGrid {
     ); // `resolutions` must be sorted in descending order
 
     // check if we've got a consistent zoom factor and origin
-    let zoomFactor;
+    let zoomFactor: number;
     if (!options.origins) {
       for (let i = 0, ii = this.resolutions_.length - 1; i < ii; ++i) {
         if (!zoomFactor) {
@@ -220,7 +220,7 @@ class TileGrid {
    * @param {function(import("../tilecoord").TileCoord): void} callback Function called with each tile coordinate.
    * @api
    */
-  forEachTileCoord(extent, zoom, callback) {
+  public forEachTileCoord(extent: Extent, zoom: number, callback: (tileCoord: TileCoord) => void): void {
     const tileRange = this.getTileRangeForExtentAndZ(extent, zoom);
     for (let i = tileRange.minX, ii = tileRange.maxX; i <= ii; ++i) {
       for (let j = tileRange.minY, jj = tileRange.maxY; j <= jj; ++j) {
@@ -236,13 +236,13 @@ class TileGrid {
    * @param {import("../extent").Extent} [tempExtent] Temporary import("../extent").Extent object.
    * @return {boolean} Callback succeeded.
    */
-  forEachTileCoordParentTileRange(
-    tileCoord,
-    callback,
-    tempTileRange,
-    tempExtent
-  ) {
-    let tileRange, x, y;
+  public forEachTileCoordParentTileRange(
+    tileCoord: TileCoord,
+    callback: (z: number, tileRange: TileRange) => boolean,
+    tempTileRange?: TileRange,
+    tempExtent?: Extent
+  ): boolean {
+    let tileRange: TileRange, x: number, y: number;
     let tileCoordExtent = null;
     let z = tileCoord[0] - 1;
     if (this.zoomFactor_ === 2) {
@@ -276,7 +276,7 @@ class TileGrid {
    * @return {import("../extent").Extent} Extent.
    * @api
    */
-  getExtent() {
+  public getExtent(): Extent {
     return this.extent_;
   }
 
@@ -285,7 +285,7 @@ class TileGrid {
    * @return {number} Max zoom.
    * @api
    */
-  getMaxZoom() {
+  public getMaxZoom(): number {
     return this.maxZoom;
   }
 
@@ -294,7 +294,7 @@ class TileGrid {
    * @return {number} Min zoom.
    * @api
    */
-  getMinZoom() {
+  public getMinZoom(): number {
     return this.minZoom;
   }
 
@@ -304,7 +304,7 @@ class TileGrid {
    * @return {import("../coordinate").Coordinate} Origin.
    * @api
    */
-  getOrigin(z) {
+  public getOrigin(z: number): Coordinate {
     if (this.origin_) {
       return this.origin_;
     }
@@ -317,7 +317,7 @@ class TileGrid {
    * @return {number} Resolution.
    * @api
    */
-  getResolution(z) {
+  public getResolution(z: number): number {
     return this.resolutions_[z];
   }
 
@@ -326,7 +326,7 @@ class TileGrid {
    * @return {Array<number>} Resolutions.
    * @api
    */
-  getResolutions() {
+  public getResolutions(): number[] {
     return this.resolutions_;
   }
 
@@ -336,7 +336,7 @@ class TileGrid {
    * @param {import("../extent").Extent} [tempExtent] Temporary import("../extent").Extent object.
    * @return {import("../TileRange").default|null} Tile range.
    */
-  getTileCoordChildTileRange(tileCoord, tempTileRange, tempExtent) {
+  public getTileCoordChildTileRange(tileCoord: TileCoord, tempTileRange?: TileRange, tempExtent?: Extent): TileRange {
     if (tileCoord[0] < this.maxZoom) {
       if (this.zoomFactor_ === 2) {
         const minX = tileCoord[1] * 2;
@@ -368,7 +368,7 @@ class TileGrid {
    * @param {import("../TileRange").default} [tempTileRange] Temporary import("../TileRange").default object.
    * @return {import("../TileRange").default|null} Tile range.
    */
-  getTileRangeForTileCoordAndZ(tileCoord, z, tempTileRange) {
+  public getTileRangeForTileCoordAndZ(tileCoord: TileCoord, z: number, tempTileRange?: TileRange): TileRange {
     if (z > this.maxZoom || z < this.minZoom) {
       return null;
     }
@@ -411,7 +411,7 @@ class TileGrid {
    * @param {import("../TileRange").default} [tempTileRange] Temporary tile range object.
    * @return {import("../TileRange").default} Tile range.
    */
-  getTileRangeForExtentAndZ(extent, z, tempTileRange?) {
+  public getTileRangeForExtentAndZ(extent: Extent, z: number, tempTileRange?: TileRange): TileRange {
     this.getTileCoordForXYAndZ_(extent[0], extent[3], z, false, tmpTileCoord);
     const minX = tmpTileCoord[1];
     const minY = tmpTileCoord[2];
@@ -425,7 +425,7 @@ class TileGrid {
    * @param {import("../tilecoord").TileCoord} tileCoord Tile coordinate.
    * @return {import("../coordinate").Coordinate} Tile center.
    */
-  getTileCoordCenter(tileCoord) {
+  public getTileCoordCenter(tileCoord: TileCoord): Coordinate {
     const origin = this.getOrigin(tileCoord[0]);
     const resolution = this.getResolution(tileCoord[0]);
     const tileSize = toSize(this.getTileSize(tileCoord[0]), this.tmpSize_);
@@ -443,7 +443,7 @@ class TileGrid {
    * @return {import("../extent").Extent} Extent.
    * @api
    */
-  getTileCoordExtent(tileCoord, tempExtent?) {
+  public getTileCoordExtent(tileCoord: TileCoord, tempExtent?: Extent): Extent {
     const origin = this.getOrigin(tileCoord[0]);
     const resolution = this.getResolution(tileCoord[0]);
     const tileSize = toSize(this.getTileSize(tileCoord[0]), this.tmpSize_);
@@ -465,7 +465,7 @@ class TileGrid {
    * @return {import("../tilecoord").TileCoord} Tile coordinate.
    * @api
    */
-  getTileCoordForCoordAndResolution(coordinate, resolution, opt_tileCoord) {
+  public getTileCoordForCoordAndResolution(coordinate: Coordinate, resolution: number, opt_tileCoord?: TileCoord): TileCoord {
     return this.getTileCoordForXYAndResolution_(
       coordinate[0],
       coordinate[1],
@@ -477,7 +477,7 @@ class TileGrid {
 
   /**
    * Note that this method should not be called for resolutions that correspond
-   * to an integer zoom level.  Instead call the `getTileCoordForXYAndZ_` method.
+   * to an integer zoom level, instead call the `getTileCoordForXYAndZ_` method.
    * @param {number} x X.
    * @param {number} y Y.
    * @param {number} resolution Resolution (for a non-integer zoom level).
@@ -488,13 +488,13 @@ class TileGrid {
    * @return {import("../tilecoord").TileCoord} Tile coordinate.
    * @private
    */
-  getTileCoordForXYAndResolution_(
-    x,
-    y,
-    resolution,
-    reverseIntersectionPolicy,
-    opt_tileCoord
-  ) {
+  private getTileCoordForXYAndResolution_(
+    x: number,
+    y: number,
+    resolution: number,
+    reverseIntersectionPolicy: boolean,
+    opt_tileCoord?: TileCoord
+  ): TileCoord {
     const z = this.getZForResolution(resolution);
     const scale = resolution / this.getResolution(z);
     const origin = this.getOrigin(z);
@@ -529,7 +529,7 @@ class TileGrid {
    * @return {import("../tilecoord").TileCoord} Tile coordinate.
    * @private
    */
-  getTileCoordForXYAndZ_(x, y, z, reverseIntersectionPolicy, opt_tileCoord) {
+  private getTileCoordForXYAndZ_(x: number, y: number, z: number, reverseIntersectionPolicy: boolean, opt_tileCoord?: TileCoord): TileCoord {
     const origin = this.getOrigin(z);
     const resolution = this.getResolution(z);
     const tileSize = toSize(this.getTileSize(z), this.tmpSize_);
@@ -570,7 +570,7 @@ class TileGrid {
    * @param {import("../tilecoord").TileCoord} tileCoord Tile coordinate.
    * @return {number} Tile resolution.
    */
-  getTileCoordResolution(tileCoord) {
+  public getTileCoordResolution(tileCoord: TileCoord): number {
     return this.resolutions_[tileCoord[0]];
   }
 
@@ -582,7 +582,7 @@ class TileGrid {
    * @return {number|import("../size").Size} Tile size.
    * @api
    */
-  getTileSize(z) {
+  public getTileSize(z: number): number | Size {
     if (this.tileSize_) {
       return this.tileSize_;
     }
@@ -593,7 +593,7 @@ class TileGrid {
    * @param {number} z Zoom level.
    * @return {import("../TileRange").default} Extent tile range for the specified zoom level.
    */
-  getFullTileRange(z) {
+  public getFullTileRange(z: number): TileRange {
     if (!this.fullTileRanges_) {
       return this.extent_
         ? this.getTileRangeForExtentAndZ(this.extent_, z)
@@ -619,7 +619,7 @@ class TileGrid {
    * @return {number} Z.
    * @api
    */
-  getZForResolution(resolution, opt_direction?) {
+  public getZForResolution(resolution: number, opt_direction?: number | NearestDirectionFunction): number {
     const z = linearFindNearest(
       this.resolutions_,
       resolution,
@@ -634,7 +634,7 @@ class TileGrid {
    * @param {Array<number>} viewport Viewport as returned from {@link module:tl/extent.getRotatedViewport}.
    * @return {boolean} The tile with the provided tile coordinate intersects the given viewport.
    */
-  tileCoordIntersectsViewport(tileCoord, viewport) {
+  public tileCoordIntersectsViewport(tileCoord: TileCoord, viewport: number[]): boolean {
     return intersectsLinearRing(
       viewport,
       0,
@@ -648,7 +648,7 @@ class TileGrid {
    * @param {!import("../extent").Extent} extent Extent for this tile grid.
    * @private
    */
-  calculateTileRanges_(extent) {
+  private calculateTileRanges_(extent: Extent): void {
     const length = this.resolutions_.length;
     const fullTileRanges = new Array(length);
     for (let z = this.minZoom; z < length; ++z) {

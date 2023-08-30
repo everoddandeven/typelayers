@@ -2,22 +2,20 @@
  * @module tl/webgl/TileGeometry
  */
 
-import BaseTileRepresentation from './BaseTileRepresentation';
+import BaseTileRepresentation, {TileRepresentationOptions} from './BaseTileRepresentation';
 import MixedGeometryBatch from '../render/webgl/MixedGeometryBatch';
 import {
   create as createTransform,
   translate as translateTransform,
 } from '../transform';
-import VectorStyleRenderer from "../render/webgl/VectorStyleRenderer";
+import VectorStyleRenderer, {WebGLBuffers} from "../render/webgl/VectorStyleRenderer";
+import VectorRenderTile from "../VectorRenderTile";
 
-/**
- * @typedef {import("../VectorRenderTile").default} TileType
- */
-
+type TileType = VectorRenderTile;
 /**
  * @extends {BaseTileRepresentation<TileType>}
  */
-class TileGeometry extends BaseTileRepresentation {
+class TileGeometry extends BaseTileRepresentation<TileType> {
   /**
    * @param {import("./BaseTileRepresentation").TileRepresentationOptions<TileType>} options The tile texture options.
    * @param {Array<import("../render/webgl/VectorStyleRenderer").default>} styleRenderers Array of vector style renderers
@@ -25,9 +23,9 @@ class TileGeometry extends BaseTileRepresentation {
 
   private batch_: MixedGeometryBatch;
   private styleRenderers_: VectorStyleRenderer[];
-  public buffers: []
+  public buffers: WebGLBuffers[]
 
-  constructor(options, styleRenderers: VectorStyleRenderer[]) {
+  constructor(options: TileRepresentationOptions<TileType>, styleRenderers: VectorStyleRenderer[]) {
     super(options);
 
     /**
@@ -48,7 +46,7 @@ class TileGeometry extends BaseTileRepresentation {
     this.setTile(options.tile);
   }
 
-  uploadTile() {
+  public uploadTile(): void {
     this.batch_.clear();
     const sourceTiles = this.tile.getSourceTiles();
     const features = sourceTiles.reduce(

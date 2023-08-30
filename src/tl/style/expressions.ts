@@ -250,7 +250,7 @@ export interface ParsingContextExternal {
   callback?: (feature: FeatureLike) => any;
 }
 
-interface ParsingContext {
+export interface ParsingContext {
   inFragmentShader?: boolean;
   variables: ParsingContextExternal[];
   attributes: ParsingContextExternal[];

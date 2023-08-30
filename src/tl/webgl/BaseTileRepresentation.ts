@@ -8,13 +8,13 @@ import ImageTile from '../ImageTile';
 import TileState from '../TileState';
 import Tile from "../Tile";
 import Helper from "./Helper";
+import TileGrid from "../tilegrid/TileGrid";
 
-type BaseTileType = Tile;
 
-interface TileRepresentationOptions {
+export interface TileRepresentationOptions<BaseTileType extends Tile = Tile> {
   tile: BaseTileType;
-  grid: import("../tilegrid/TileGrid").default;
-  helper: import("./Helper").default;
+  grid: TileGrid;
+  helper: Helper;
   gutter?: number;
 }
 

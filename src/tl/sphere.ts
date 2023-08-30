@@ -2,25 +2,21 @@
  * @module tl/sphere
  */
 import {toDegrees, toRadians} from './math';
+import {Coordinate, Coordinates} from "./coordinate";
+import {ProjectionLike} from "./proj";
+import {Geometry, GeometryCollection, Polygon, SimpleGeometry} from "./geom";
 
-/**
- * Object literal with options for the {@link getLength} or {@link getArea}
- * functions.
- * @typedef {Object} SphereMetricOptions
- * @property {import("./proj").ProjectionLike} [projection='EPSG:3857']
- * Projection of the  geometry.  By default, the geometry is assumed to be in
- * Web Mercator.
- * @property {number} [radius=6371008.8] Sphere radius.  By default, the
- * [mean Earth radius](https://en.wikipedia.org/wiki/Earth_radius#Mean_radius)
- * for the WGS84 ellipsoid is used.
- */
+export type SphereMetricOptions = {
+    projection?: ProjectionLike;
+    radius?: number;
+}
 
 /**
  * The mean Earth radius (1/3 * (2a + b)) for the WGS84 ellipsoid.
  * https://en.wikipedia.org/wiki/Earth_radius#Mean_radius
  * @type {number}
  */
-export const DEFAULT_RADIUS = 6371008.8;
+export const DEFAULT_RADIUS: number = 6371008.8;
 
 /**
  * Get the great circle distance (in meters) between two geographic coordinates.
@@ -31,7 +27,7 @@ export const DEFAULT_RADIUS = 6371008.8;
  * @return {number} The great circle distance between the points (in meters).
  * @api
  */
-export function getDistance(c1, c2, radius?) {
+export function getDistance(c1: Coordinate, c2: Coordinate, radius?: number): number {
   radius = radius || DEFAULT_RADIUS;
   const lat1 = toRadians(c1[1]);
   const lat2 = toRadians(c2[1]);
@@ -52,7 +48,7 @@ export function getDistance(c1, c2, radius?) {
  * @param {number} radius The sphere radius to use.
  * @return {number} The length (in meters).
  */
-function getLengthInternal(coordinates, radius) {
+function getLengthInternal(coordinates: Coordinates, radius: number): number {
   let length = 0;
   for (let i = 0, ii = coordinates.length; i < ii - 1; ++i) {
     length += getDistance(coordinates[i], coordinates[i + 1], radius);
@@ -72,7 +68,7 @@ function getLengthInternal(coordinates, radius) {
  * @return {number} The spherical length (in meters).
  * @api
  */
-export function getLength(geometry, options) {
+export function getLength(geometry: Geometry, options?: SphereMetricOptions): number {
   options = options || {};
   const radius = options.radius || DEFAULT_RADIUS;
   const projection = options.projection || 'EPSG:3857';
@@ -90,6 +86,7 @@ export function getLength(geometry, options) {
     case 'LineString':
     case 'LinearRing': {
       coordinates = /** @type {import("./geom/SimpleGeometry").default} */ (
+          <SimpleGeometry>
         geometry
       ).getCoordinates();
       length = getLengthInternal(coordinates, radius);
@@ -98,6 +95,7 @@ export function getLength(geometry, options) {
     case 'MultiLineString':
     case 'Polygon': {
       coordinates = /** @type {import("./geom/SimpleGeometry").default} */ (
+          <SimpleGeometry>
         geometry
       ).getCoordinates();
       for (i = 0, ii = coordinates.length; i < ii; ++i) {
@@ -107,6 +105,7 @@ export function getLength(geometry, options) {
     }
     case 'MultiPolygon': {
       coordinates = /** @type {import("./geom/SimpleGeometry").default} */ (
+          <SimpleGeometry>
         geometry
       ).getCoordinates();
       for (i = 0, ii = coordinates.length; i < ii; ++i) {
@@ -120,6 +119,7 @@ export function getLength(geometry, options) {
     case 'GeometryCollection': {
       const geometries =
         /** @type {import("./geom/GeometryCollection").default} */ (
+            <GeometryCollection>
           geometry
         ).getGeometries();
       for (i = 0, ii = geometries.length; i < ii; ++i) {
@@ -148,7 +148,7 @@ export function getLength(geometry, options) {
  * @param {number} radius The sphere radius.
  * @return {number} Area (in square meters).
  */
-function getAreaInternal(coordinates, radius) {
+export function getAreaInternal(coordinates: Coordinates, radius: number): number {
   let area = 0;
   const len = coordinates.length;
   let x1 = coordinates[len - 1][0];
@@ -175,7 +175,7 @@ function getAreaInternal(coordinates, radius) {
  * @return {number} The spherical area (in square meters).
  * @api
  */
-export function getArea(geometry, options) {
+export function getArea(geometry: Geometry, options?: SphereMetricOptions): number {
   options = options || {};
   const radius = options.radius || DEFAULT_RADIUS;
   const projection = options.projection || 'EPSG:3857';
@@ -195,6 +195,7 @@ export function getArea(geometry, options) {
     }
     case 'Polygon': {
       coordinates = /** @type {import("./geom/Polygon").default} */ (
+          <Polygon>
         geometry
       ).getCoordinates();
       area = Math.abs(getAreaInternal(coordinates[0], radius));
@@ -205,6 +206,7 @@ export function getArea(geometry, options) {
     }
     case 'MultiPolygon': {
       coordinates = /** @type {import("./geom/SimpleGeometry").default} */ (
+          <SimpleGeometry>
         geometry
       ).getCoordinates();
       for (i = 0, ii = coordinates.length; i < ii; ++i) {
@@ -219,6 +221,7 @@ export function getArea(geometry, options) {
     case 'GeometryCollection': {
       const geometries =
         /** @type {import("./geom/GeometryCollection").default} */ (
+            <GeometryCollection>
           geometry
         ).getGeometries();
       for (i = 0, ii = geometries.length; i < ii; ++i) {
@@ -244,7 +247,7 @@ export function getArea(geometry, options) {
  *     mean radius using the WGS84 ellipsoid.
  * @return {import("./coordinate").Coordinate} The target point.
  */
-export function offset(c1, distance, bearing, radius) {
+export function offset(c1: Coordinate, distance: number, bearing: number, radius?: number): Coordinate {
   radius = radius || DEFAULT_RADIUS;
   const lat1 = toRadians(c1[1]);
   const lon1 = toRadians(c1[0]);

@@ -5,7 +5,7 @@
 /**
  * @return {never} Any return.
  */
-export function abstract() {
+export function abstract(): void {
   throw new Error('Unimplemented abstract method.');
 }
 
@@ -14,7 +14,7 @@ export function abstract() {
  * @type {number}
  * @private
  */
-let uidCounter_ = 0;
+let uidCounter_: number = 0;
 
 /**
  * Gets a unique ID for an object. This mutates the object so that further calls
@@ -25,7 +25,7 @@ let uidCounter_ = 0;
  * @return {string} The unique ID for the object.
  * @api
  */
-export function getUid(obj) {
+export function getUid(obj: any): string {
   return obj.ol_uid || (obj.ol_uid = String(++uidCounter_));
 }
 
@@ -33,4 +33,4 @@ export function getUid(obj) {
  * OpenLayers version.
  * @type {string}
  */
-export const VERSION = 'latest';
+export const VERSION: string = 'latest';

@@ -4,7 +4,7 @@
 import {
   containsCoordinate,
   createEmpty,
-  extend,
+  extend, Extent,
   forEachCorner,
   getCenter,
   getHeight,
@@ -14,13 +14,16 @@ import {
 import {createCanvasContext2D, releaseCanvas} from './dom';
 import {getPointResolution, transform} from './proj';
 import {solveLinearSystem} from './math';
+import Projection from "./proj/Projection";
+import {Coordinate} from "./coordinate";
+import Triangulation from "./reproj/Triangulation";
 
-let brokenDiagonalRendering_;
+let brokenDiagonalRendering_: boolean;
 
 /**
  * @type {Array<HTMLCanvasElement>}
  */
-export const canvasPool = [];
+export const canvasPool: HTMLCanvasElement[] = [];
 
 /**
  * This draws a small triangle into a canvas by setting the triangle as the clip region
@@ -32,7 +35,7 @@ export const canvasPool = [];
  * @param {number} u2 The x-coordinate of the third point.
  * @param {number} v2 The y-coordinate of the third point.
  */
-function drawTestTriangle(ctx, u1, v1, u2, v2) {
+function drawTestTriangle(ctx: CanvasRenderingContext2D, u1: number, v1: number, u2: number, v2: number): void {
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.lineTo(u1, v1);
@@ -52,7 +55,7 @@ function drawTestTriangle(ctx, u1, v1, u2, v2) {
  * @param {number} offset The pixel offset from the start of data.
  * @return {boolean} true if the diagonal rendering is broken
  */
-function verifyBrokenDiagonalRendering(data, offset) {
+function verifyBrokenDiagonalRendering(data: Uint8ClampedArray, offset: number): boolean {
   // the values ought to be close to the rgba(210, 0, 0, 0.75)
   return (
     Math.abs(data[offset * 4] - 210) > 2 ||
@@ -70,9 +73,9 @@ function verifyBrokenDiagonalRendering(data, offset) {
  *
  * @return {boolean} true if the Diagonal Rendering is broken.
  */
-function isBrokenDiagonalRendering() {
+function isBrokenDiagonalRendering(): boolean {
   if (brokenDiagonalRendering_ === undefined) {
-    const ctx = createCanvasContext2D(6, 6, canvasPool);
+    const ctx = <CanvasRenderingContext2D>createCanvasContext2D(6, 6, canvasPool);
     ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = 'rgba(210, 0, 0, 0.75)';
     drawTestTriangle(ctx, 4, 5, 4, 0);
@@ -102,11 +105,11 @@ function isBrokenDiagonalRendering() {
  * @return {number} The best resolution to use. Can be +-Infinity, NaN or 0.
  */
 export function calculateSourceResolution(
-  sourceProj,
-  targetProj,
-  targetCenter,
-  targetResolution
-) {
+  sourceProj: Projection,
+  targetProj: Projection,
+  targetCenter: Coordinate,
+  targetResolution: number
+): number {
   const sourceCenter = transform(targetCenter, targetProj, sourceProj);
 
   // calculate the ideal resolution of the source data
@@ -207,19 +210,19 @@ export function calculateSourceExtentResolution(
  * @return {HTMLCanvasElement} Canvas with reprojected data.
  */
 export function render(
-  width,
-  height,
-  pixelRatio,
-  sourceResolution,
-  sourceExtent,
-  targetResolution,
-  targetExtent,
-  triangulation,
-  sources,
-  gutter,
-  renderEdges,
-  interpolate
-) {
+  width: number,
+  height: number,
+  pixelRatio: number,
+  sourceResolution: number,
+  sourceExtent: Extent,
+  targetResolution: number,
+  targetExtent: Extent,
+  triangulation: Triangulation,
+  sources: ImageExtent[],
+  gutter: number,
+  renderEdges?: boolean,
+  interpolate?: boolean
+): HTMLCanvasElement {
   const context = createCanvasContext2D(
     Math.round(pixelRatio * width),
     Math.round(pixelRatio * height),
@@ -231,12 +234,12 @@ export function render(
   }
 
   if (sources.length === 0) {
-    return context.canvas;
+    return <HTMLCanvasElement>context.canvas;
   }
 
   context.scale(pixelRatio, pixelRatio);
 
-  function pixelRound(value) {
+  function pixelRound(value: number): number {
     return Math.round(value * pixelRatio) / pixelRatio;
   }
 
@@ -409,7 +412,7 @@ export function render(
   });
 
   releaseCanvas(stitchContext);
-  canvasPool.push(stitchContext.canvas);
+  canvasPool.push(<HTMLCanvasElement>stitchContext.canvas);
 
   if (renderEdges) {
     context.save();
@@ -437,5 +440,5 @@ export function render(
 
     context.restore();
   }
-  return context.canvas;
+  return <HTMLCanvasElement>context.canvas;
 }

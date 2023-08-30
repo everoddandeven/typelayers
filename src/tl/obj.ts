@@ -20,7 +20,7 @@ export function clear(object: Object): void {
 export function isEmpty(object: Object): boolean {
   let property: string;
 
-  for (const prop in object) {
+  for(let prop in object) {
     property = prop;
     return false;
   }

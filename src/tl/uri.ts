@@ -10,7 +10,7 @@
  *     and the values are arbitrary types or arrays.
  * @return {string} The new URI.
  */
-export function appendParams(uri, params) {
+export function appendParams(uri: string, params: {[p: string]: any}): string {
   const keyParams = [];
   // Skip any null or undefined parameter values
   Object.keys(params).forEach(function (k) {

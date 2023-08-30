@@ -4,6 +4,10 @@
 
 import LRUCache from './structs/LRUCache';
 import {getIntersection} from './extent';
+import TileGrid from "./tilegrid/TileGrid";
+import {TileCoord} from "./tilecoord";
+import tileGrid from "./tilegrid/TileGrid";
+import Source from './source/Source';
 
 export {default as BingMaps} from './source/BingMaps';
 export {default as CartoDB} from './source/CartoDB';
@@ -49,7 +53,7 @@ export {default as Zoomify} from './source/Zoomify';
  * @return {function(import("./extent").Extent, number): Array<import("./source/Source").default>} Sources function.
  * @api
  */
-export function sourcesFromTileGrid(tileGrid, factory) {
+export function sourcesFromTileGrid(tileGrid: TileGrid, factory: (tileCoord: TileCoord) => Source = (tileCoord: TileCoord) => new TileImage({tileCoord})) {
   const sourceCache = new LRUCache(32);
   const tileGridExtent = tileGrid.getExtent();
   return function (extent, resolution) {

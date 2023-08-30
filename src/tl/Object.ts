@@ -2,11 +2,12 @@
  * @module tl/Object
  */
 import Event from './events/Event';
-import ObjectEventType from './ObjectEventType';
-import Observable from './Observable';
+import ObjectEventType, {ObjectEventTypes} from './ObjectEventType';
+import Observable, {CombinedOnSignature, EventTypes, OnSignature} from './Observable';
 import {getUid} from './util';
 import {isEmpty} from './obj';
 import {Listener} from "./events";
+import BaseEvent from "./events/Event";
 
 /**
  * @classdesc
@@ -42,14 +43,9 @@ export class ObjectEvent extends Event {
   }
 }
 
-/***
- * @template Return
- * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event").default, Return> &
- *    import("./Observable").OnSignature<import("./ObjectEventType").Types, ObjectEvent, Return> &
- *    import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|import("./ObjectEventType").Types, Return>} ObjectOnSignature
- */
-
-export type ObjectOnSignature = any;
+export type ObjectOnSignature<Return = any> = OnSignature<EventTypes, BaseEvent, Return> &
+    OnSignature<ObjectEventTypes, ObjectEvent, Return> &
+    CombinedOnSignature<EventTypes | ObjectEventTypes, Return>;
 
 /**
  * @classdesc
@@ -99,9 +95,9 @@ abstract class BaseObject extends Observable {
    * @param {Object<string, *>} [values] An object with key-value pairs.
    */
 
-  public on: ObjectOnSignature;
-  public once: ObjectOnSignature;
-  public un: ObjectOnSignature;
+  //public on?: ObjectOnSignature;
+  //public once?: ObjectOnSignature;
+  //public un?: ObjectOnSignature;
 
   private values_: {[key: string]: any};
 

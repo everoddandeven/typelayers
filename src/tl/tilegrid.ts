@@ -21,7 +21,7 @@ import {Extent} from "./extent/Extent";
  * @return {!TileGrid} Default tile grid for the
  * passed projection.
  */
-export function getForProjection(projection: Projection) {
+export function getForProjection(projection: Projection): TileGrid {
   let tileGrid = projection.getDefaultTileGrid();
   if (!tileGrid) {
     tileGrid = createForProjection(projection);
@@ -83,18 +83,6 @@ export interface XYZOptions
 }
 
 /**
- * @typedef {Object} XYZOptions
- * @property {import("./extent").Extent} [extent] Extent for the tile grid. The origin for an XYZ tile grid is the
- * top-left corner of the extent. If `maxResolution` is not provided the zero level of the grid is defined by the resolution
- * at which one tile fits in the provided extent. If not provided, the extent of the EPSG:3857 projection is used.
- * @property {number} [maxResolution] Resolution at level zero.
- * @property {number} [maxZoom] Maximum zoom. The default is `42`. This determines the number of levels
- * in the grid set. For example, a `maxZoom` of 21 means there are 22 levels in the grid set.
- * @property {number} [minZoom=0] Minimum zoom.
- * @property {number|import("./size").Size} [tileSize=[256, 256]] Tile size in pixels.
- */
-
-/**
  * Creates a tile grid with a standard XYZ tiling scheme.
  * @param {XYZOptions} [options] Tile grid options.
  * @return {!TileGrid} Tile grid instance.
@@ -135,7 +123,7 @@ export function createXYZ(options: XYZOptions): TileGrid {
  * @param {number} [maxResolution] Resolution at level zero.
  * @return {!Array<number>} Resolutions array.
  */
-function resolutionsFromExtent(extent: Extent, maxZoom: number, tileSize: Size, maxResolution: number): number[] {
+function resolutionsFromExtent(extent: Extent, maxZoom: number, tileSize?: number | Size, maxResolution?: number): number[] {
   maxZoom = maxZoom !== undefined ? maxZoom : DEFAULT_MAX_ZOOM;
   tileSize = toSize(tileSize !== undefined ? tileSize : DEFAULT_TILE_SIZE);
 
@@ -167,8 +155,9 @@ function resolutionsFromExtent(extent: Extent, maxZoom: number, tileSize: Size, 
 export function createForProjection(
     projection: Projection,
     maxZoom: number = DEFAULT_MAX_ZOOM,
-    tileSize: Size = DEFAULT_TILE_SIZE,
-    corner: Corner = 'top-left'): TileGrid {
+    tileSize: number | Size = DEFAULT_TILE_SIZE,
+    corner: Corner = 'top-left'): TileGrid
+{
   const extent = extentFromProjection(projection);
   return createForExtent(extent, maxZoom, tileSize, corner);
 }

@@ -3,26 +3,22 @@
  */
 import {extend} from './array';
 
-/**
- * When using {@link module:tl/xml.makeChildAppender} or
- * {@link module:tl/xml.makeSimpleNodeFactory}, the top `objectStack` item needs
- * to have this structure.
- * @typedef {Object} NodeStackItem
- * @property {Element} node Node.
- */
+export interface NodeStackItem {
+  node: Element;
+}
 
-/**
- * @typedef {function(Element, Array<*>): void} Parser
- */
+export type Parser = (element: Element, array: any[]) => void;
 
 /**
  * @typedef {function(Element, *, Array<*>): void} Serializer
  */
 
+export type Serializer = (element: Element, array: any[]) => void;
+
 /**
  * @type {string}
  */
-export const XML_SCHEMA_INSTANCE_URI =
+export const XML_SCHEMA_INSTANCE_URI: string =
   'http://www.w3.org/2001/XMLSchema-instance';
 
 /**
@@ -30,7 +26,7 @@ export const XML_SCHEMA_INSTANCE_URI =
  * @param {string} qualifiedName Qualified name.
  * @return {Element} Node.
  */
-export function createElementNS(namespaceURI, qualifiedName) {
+export function createElementNS(namespaceURI: string, qualifiedName: string): Element {
   return getDocument().createElementNS(namespaceURI, qualifiedName);
 }
 
@@ -42,7 +38,7 @@ export function createElementNS(namespaceURI, qualifiedName) {
  * @return {string} All text content.
  * @api
  */
-export function getAllTextContent(node, normalizeWhitespace) {
+export function getAllTextContent(node: Node, normalizeWhitespace: boolean): string {
   return getAllTextContent_(node, normalizeWhitespace, []).join('');
 }
 
@@ -55,7 +51,7 @@ export function getAllTextContent(node, normalizeWhitespace) {
  * @private
  * @return {Array<string>} Accumulator.
  */
-export function getAllTextContent_(node, normalizeWhitespace, accumulator) {
+export function getAllTextContent_(node: Node, normalizeWhitespace: boolean, accumulator: string[]): string[] {
   if (
     node.nodeType == Node.CDATA_SECTION_NODE ||
     node.nodeType == Node.TEXT_NODE
@@ -78,7 +74,7 @@ export function getAllTextContent_(node, normalizeWhitespace, accumulator) {
  * @param {Object} object Object.
  * @return {boolean} Is a document.
  */
-export function isDocument(object) {
+export function isDocument(object: any): boolean {
   return 'documentElement' in object;
 }
 
@@ -88,7 +84,7 @@ export function isDocument(object) {
  * @param {string} name Attribute name.
  * @return {string} Value
  */
-export function getAttributeNS(node, namespaceURI, name) {
+export function getAttributeNS(node: Element, namespaceURI: string, name: string): string {
   return node.getAttributeNS(namespaceURI, name) || '';
 }
 
@@ -98,9 +94,11 @@ export function getAttributeNS(node, namespaceURI, name) {
  * @return {Document} Document.
  * @api
  */
-export function parse(xml) {
+export function parse(xml: string): Document {
   return new DOMParser().parseFromString(xml, 'application/xml');
 }
+
+export type ValueNodeReader<T>= (this: T, node: Node, objectStack: any[]) => any;
 
 /**
  * Make an array extender function for extending the array at the top of the
@@ -110,7 +108,7 @@ export function parse(xml) {
  * @return {Parser} Parser.
  * @template T
  */
-export function makeArrayExtender(valueReader, thisArg) {
+export function makeArrayExtender<T>(valueReader: ValueNodeReader<T>, thisArg: T): Parser {
   return (
     /**
      * @param {Node} node Node.
@@ -132,6 +130,8 @@ export function makeArrayExtender(valueReader, thisArg) {
   );
 }
 
+export type ValueElementReader<T> = (this: T, element: Element, objectStack: any[]) => any;
+
 /**
  * Make an array pusher function for pushing to the array at the top of the
  * object stack.
@@ -140,13 +140,13 @@ export function makeArrayExtender(valueReader, thisArg) {
  * @return {Parser} Parser.
  * @template T
  */
-export function makeArrayPusher(valueReader, thisArg) {
+export function makeArrayPusher<T>(valueReader: ValueElementReader<T>, thisArg: T): Parser {
   return (
     /**
      * @param {Element} node Node.
      * @param {Array<*>} objectStack Object stack.
      */
-    function (node, objectStack) {
+    function (node: Element, objectStack: any[]): void {
       const value = valueReader.call(
         thisArg !== undefined ? thisArg : this,
         node,
@@ -170,7 +170,7 @@ export function makeArrayPusher(valueReader, thisArg) {
  * @return {Parser} Parser.
  * @template T
  */
-export function makeReplacer(valueReader, thisArg) {
+export function makeReplacer<T>(valueReader: ValueNodeReader<T>, thisArg: T): Parser {
   return (
     /**
      * @param {Node} node Node.
@@ -198,7 +198,7 @@ export function makeReplacer(valueReader, thisArg) {
  * @return {Parser} Parser.
  * @template T
  */
-export function makeObjectPropertyPusher(valueReader, property, thisArg) {
+export function makeObjectPropertyPusher<T>(valueReader: ValueElementReader<T>, property?: string, thisArg?: T): Parser {
   return (
     /**
      * @param {Element} node Node.
@@ -236,7 +236,7 @@ export function makeObjectPropertyPusher(valueReader, property, thisArg) {
  * @return {Parser} Parser.
  * @template T
  */
-export function makeObjectPropertySetter(valueReader, property, thisArg) {
+export function makeObjectPropertySetter<T>(valueReader: ValueElementReader<T>, property?: string, thisArg?: T): Parser {
   return (
     /**
      * @param {Element} node Node.
@@ -259,6 +259,8 @@ export function makeObjectPropertySetter(valueReader, property, thisArg) {
   );
 }
 
+export type ValueNodeWriter<T,V> = (this: T, node: Node, value: V, objectStack: any[]) => void;
+
 /**
  * Create a serializer that appends nodes written by its `nodeWriter` to its
  * designated parent. The parent is the `node` of the
@@ -268,7 +270,8 @@ export function makeObjectPropertySetter(valueReader, property, thisArg) {
  * @return {Serializer} Serializer.
  * @template T, V
  */
-export function makeChildAppender(nodeWriter, thisArg) {
+
+export function makeChildAppender<T,V>(nodeWriter: ValueNodeWriter<T, V>, thisArg?: T): Serializer {
   return function (node, value, objectStack) {
     nodeWriter.call(
       thisArg !== undefined ? thisArg : this,
@@ -283,6 +286,8 @@ export function makeChildAppender(nodeWriter, thisArg) {
     parentNode.appendChild(node);
   };
 }
+
+
 
 /**
  * Create a serializer that calls the provided `nodeWriter` from
@@ -323,7 +328,7 @@ export function makeArraySerializer(nodeWriter, thisArg) {
  *     be used.
  * @return {function(*, Array<*>, string=): (Node|undefined)} Node factory.
  */
-export function makeSimpleNodeFactory(fixedNodeName, fixedNamespaceURI) {
+export function makeSimpleNodeFactory(fixedNodeName?: string, fixedNamespaceURI?: string) {
   return (
     /**
      * @param {*} value Value.

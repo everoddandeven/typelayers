@@ -4,6 +4,7 @@
 import {WORKER_OFFSCREEN_CANVAS} from './has';
 import {assert} from './asserts';
 import {Coordinate, Coordinates} from "./coordinate";
+import {Pixel} from "./pixel";
 
 export type Transform = [number, number, number, number, number, number];
 

@@ -2,12 +2,13 @@
  * A worker that does cpu-heavy tasks related to webgl rendering.
  * @module tl/worker/webgl
  */
-import {WebGLWorkerMessageType} from '../render/webgl/constants';
+import {WebGLWorkerGenerateBuffersMessage, WebGLWorkerMessageType} from '../render/webgl/constants';
 import {
   create as createTransform,
   makeInverse as makeInverseTransform,
 } from '../transform';
 import {
+  BufferPositions,
   writeLineSegmentToBuffers,
   writePointFeatureToBuffers,
   writePolygonTrianglesToBuffers,
@@ -35,7 +36,7 @@ worker.onmessage = (event) => {
       const indexBuffer = new Uint32Array(indicesCount);
       const vertexBuffer = new Float32Array(verticesCount);
 
-      let bufferPositions;
+      let bufferPositions: BufferPositions = null;
       for (let i = 0; i < renderInstructions.length; i += instructionsCount) {
         bufferPositions = writePointFeatureToBuffers(
           renderInstructions,
@@ -48,7 +49,7 @@ worker.onmessage = (event) => {
       }
 
       /** @type {import('../render/webgl/constants').WebGLWorkerGenerateBuffersMessage} */
-      const message = Object.assign(
+      const message: WebGLWorkerGenerateBuffersMessage = Object.assign(
         {
           vertexBuffer: vertexBuffer.buffer,
           indexBuffer: indexBuffer.buffer,
@@ -78,7 +79,7 @@ worker.onmessage = (event) => {
       const invertTransform = createTransform();
       makeInverseTransform(invertTransform, transform);
 
-      let verticesCount, customAttributes;
+      let verticesCount: number, customAttributes: number[];
       while (currentInstructionsIndex < renderInstructions.length) {
         customAttributes = Array.from(
           renderInstructions.slice(
@@ -115,7 +116,7 @@ worker.onmessage = (event) => {
       const vertexBuffer = Float32Array.from(vertices);
 
       /** @type {import('../render/webgl/constants').WebGLWorkerGenerateBuffersMessage} */
-      const message = Object.assign(
+      const message: WebGLWorkerGenerateBuffersMessage = Object.assign(
         {
           vertexBuffer: vertexBuffer.buffer,
           indexBuffer: indexBuffer.buffer,
@@ -153,7 +154,7 @@ worker.onmessage = (event) => {
       const vertexBuffer = Float32Array.from(vertices);
 
       /** @type {import('../render/webgl/constants').WebGLWorkerGenerateBuffersMessage} */
-      const message = Object.assign(
+      const message: WebGLWorkerGenerateBuffersMessage = Object.assign(
         {
           vertexBuffer: vertexBuffer.buffer,
           indexBuffer: indexBuffer.buffer,
@@ -174,4 +175,4 @@ worker.onmessage = (event) => {
   }
 };
 
-export let create;
+export let create: any;

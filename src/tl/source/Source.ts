@@ -4,6 +4,7 @@
 import BaseObject from '../Object';
 import {get as getProjection, ProjectionLike} from '../proj';
 import Projection from "../proj/Projection";
+import {ViewOptions, ViewStateLayerStateExtent} from "../View";
 
 export type SourceState = 'undefined' | 'loading' | 'ready' | 'error';
 export type Attribution = (viewStateLayerStateExtent: ViewStateLayerStateExtent) => string | string[];
@@ -257,7 +258,7 @@ function adaptAttributions(attributionLike?: AttributionLike): Attribution | nul
     return null;
   }
   if (Array.isArray(attributionLike)) {
-    return function (frameState) {
+    return function (frameState: ViewStateLayerStateExtent): string[] {
       return attributionLike;
     };
   }
@@ -266,7 +267,7 @@ function adaptAttributions(attributionLike?: AttributionLike): Attribution | nul
     return attributionLike;
   }
 
-  return function (frameState) {
+  return function (frameState: ViewStateLayerStateExtent): string[] {
     return [attributionLike];
   };
 }

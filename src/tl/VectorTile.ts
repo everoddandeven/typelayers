@@ -56,7 +56,7 @@ class VectorTile extends Tile {
      * @private
      * @type {import("./featureloader").FeatureLoader}
      */
-    this.loader_;
+    this.loader_ = null;
 
     /**
      * Feature projection of this tile; set by the source.
@@ -68,7 +68,7 @@ class VectorTile extends Tile {
      * Resolution of this tile; set by the source.
      * @type {number}
      */
-    this.resolution;
+    this.resolution = null;
 
     /**
      * @private
@@ -90,7 +90,7 @@ class VectorTile extends Tile {
    * @return {import("./format/Feature").default} Feature format.
    * @api
    */
-  getFormat() {
+  public getFormat(): FeatureFormat {
     return this.format_;
   }
 

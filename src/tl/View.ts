@@ -6,45 +6,42 @@ import ViewHint from './ViewHint';
 import ViewProperty from './ViewProperty';
 import {DEFAULT_TILE_SIZE} from './tilegrid/common';
 import {
-  METERS_PER_UNIT,
   createProjection,
   disableCoordinateWarning,
   fromUserCoordinate,
   fromUserExtent,
   getUserProjection,
+  METERS_PER_UNIT,
+  ProjectionLike,
   toUserCoordinate,
-  toUserExtent, ProjectionLike,
+  toUserExtent,
 } from './proj';
 import {VOID} from './functions';
 import {
-  add as addCoordinate, Coordinate,
+  add as addCoordinate,
+  Coordinate,
   equals as coordinatesEqual,
   equals,
   rotate as rotateCoordinate,
 } from './coordinate';
 import {assert} from './asserts';
-import {none as centerNone, createExtent, CenterConstraintType} from './centerconstraint';
+import {CenterConstraintType, createExtent, none as centerNone} from './centerconstraint';
 import {clamp, modulo} from './math';
 import {
   createMinMaxResolution,
   createSnapToPower,
-  createSnapToResolutions, ResolutionConstraintType,
+  createSnapToResolutions,
+  ResolutionConstraintType,
 } from './resolutionconstraint';
 import {
   createSnapToN,
   createSnapToZero,
   disable,
-  none as rotationNone, RotationConstraintType,
+  none as rotationNone,
+  RotationConstraintType,
 } from './rotationconstraint';
 import {easeOut, inAndOut} from './easing';
-import {
-  Extent,
-  getCenter,
-  getForViewAndSize,
-  getHeight,
-  getWidth,
-  isEmpty,
-} from './extent';
+import {Extent, getCenter, getForViewAndSize, getHeight, getWidth, isEmpty,} from './extent';
 import {linearFindNearest} from './array';
 import {fromExtent as polygonFromExtent} from './geom/Polygon';
 import {Size} from "./size";
@@ -151,12 +148,6 @@ export type ViewObjectEventTypes =
     | 'change:resolution'
     | 'change:rotation';
 
-/***
- * @template Return
- * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event").default, Return> &
- *   import("./Observable").OnSignature<ViewObjectEventTypes, import("./Object").ObjectEvent, Return> &
- *   import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|ViewObjectEventTypes, Return>} ViewOnSignature
- */
 
 export type ViewOnSignature<Return> =
     OnSignature<EventTypes, BaseEvent, Return> &
@@ -261,7 +252,7 @@ class View extends BaseObject {
   private resolutions_: number[];
   private padding_: number[];
   private minZoom_: number;
-  private constraints_: any;
+  private constraints_: Constraints;
 
   constructor(options?: ViewOptions) {
     super();
@@ -327,13 +318,13 @@ class View extends BaseObject {
      * @private
      * @type {number}
      */
-    this.nextResolution_;
+    this.nextResolution_ = null;
 
     /**
      * @private
      * @type {number}
      */
-    this.nextRotation_;
+    this.nextRotation_ = null;
 
     /**
      * @private
@@ -466,7 +457,7 @@ class View extends BaseObject {
    * @param {ViewOptions} newOptions New options to be applied.
    * @return {ViewOptions} New options updated with the current view state.
    */
-  getUpdatedOptions_(newOptions) {
+  private getUpdatedOptions_(newOptions: ViewOptions): ViewOptions {
     const options = this.getProperties();
 
     // preserve resolution (or zoom)
@@ -518,7 +509,7 @@ class View extends BaseObject {
    *     the animation completed without being cancelled.
    * @api
    */
-  animate(var_args) {
+  public animate(var_args: any): void {
     if (this.isDef() && !this.getAnimating()) {
       this.resolveConstraints(0);
     }
@@ -547,7 +538,7 @@ class View extends BaseObject {
   /**
    * @param {...(AnimationOptions|function(boolean): void)} var_args Animation options.
    */
-  public animateInternal(...var_args): void {
+  protected animateInternal(var_args: any): void {
     let animationCount = arguments.length;
     let callback;
     if (
@@ -641,7 +632,7 @@ class View extends BaseObject {
    * @return {boolean} The view is being animated.
    * @api
    */
-  getAnimating() {
+  public getAnimating(): boolean {
     return this.hints_[ViewHint.ANIMATING] > 0;
   }
 
@@ -650,7 +641,7 @@ class View extends BaseObject {
    * @return {boolean} The view is being interacted with.
    * @api
    */
-  getInteracting() {
+  public getInteracting(): boolean {
     return this.hints_[ViewHint.INTERACTING] > 0;
   }
 
@@ -658,9 +649,9 @@ class View extends BaseObject {
    * Cancel any ongoing animations.
    * @api
    */
-  cancelAnimations() {
+  public cancelAnimations(): void {
     this.setHint(ViewHint.ANIMATING, -this.hints_[ViewHint.ANIMATING]);
-    let anchor;
+    let anchor: Coordinate;
     for (let i = 0, ii = this.animations_.length; i < ii; ++i) {
       const series = this.animations_[i];
       if (series[0].callback) {
@@ -686,7 +677,7 @@ class View extends BaseObject {
   /**
    * Update all animations.
    */
-  updateAnimations_() {
+  private updateAnimations_(): void {
     if (this.updateAnimationKey_ !== undefined) {
       cancelAnimationFrame(this.updateAnimationKey_);
       this.updateAnimationKey_ = undefined;
@@ -804,8 +795,8 @@ class View extends BaseObject {
    * @param {import("./coordinate").Coordinate} anchor Rotation anchor.
    * @return {import("./coordinate").Coordinate|undefined} Center for rotation and anchor.
    */
-  calculateCenterRotate(rotation, anchor) {
-    let center;
+  public calculateCenterRotate(rotation: number, anchor: Coordinate): Coordinate | undefined {
+    let center: Coordinate;
     const currentCenter = this.getCenterInternal();
     if (currentCenter !== undefined) {
       center = [currentCenter[0] - anchor[0], currentCenter[1] - anchor[1]];
@@ -820,8 +811,8 @@ class View extends BaseObject {
    * @param {import("./coordinate").Coordinate} anchor Zoom anchor.
    * @return {import("./coordinate").Coordinate|undefined} Center for resolution and anchor.
    */
-  calculateCenterZoom(resolution, anchor) {
-    let center;
+  public calculateCenterZoom(resolution: number, anchor: Coordinate): Coordinate | undefined {
+    let center: Coordinate;
     const currentCenter = this.getCenterInternal();
     const currentResolution = this.getResolution();
     if (currentCenter !== undefined && currentResolution !== undefined) {
@@ -842,7 +833,7 @@ class View extends BaseObject {
    * @param {number} [rotation] Take into account the rotation of the viewport when giving the size
    * @return {import("./size").Size} Viewport size or `[100, 100]` when no viewport is found.
    */
-  getViewportSize_(rotation?: number): Size {
+  private getViewportSize_(rotation?: number): Size {
     const size = this.viewportSize_;
     if (rotation) {
       const w = size[0];
@@ -875,7 +866,7 @@ class View extends BaseObject {
    * @observable
    * @api
    */
-  getCenter() {
+  public getCenter(): Coordinate | undefined {
     const center = this.getCenterInternal();
     if (!center) {
       return center;
@@ -887,7 +878,7 @@ class View extends BaseObject {
    * Get the view center without transforming to user projection.
    * @return {import("./coordinate").Coordinate|undefined} The center of the view.
    */
-  getCenterInternal() {
+  protected getCenterInternal(): Coordinate | undefined {
     return /** @type {import("./coordinate").Coordinate|undefined} */ (
       this.get(ViewProperty.CENTER)
     );
@@ -896,14 +887,14 @@ class View extends BaseObject {
   /**
    * @return {Constraints} Constraints.
    */
-  getConstraints() {
+  public getConstraints(): Constraints {
     return this.constraints_;
   }
 
   /**
    * @return {boolean} Resolution constraint is set
    */
-  getConstrainResolution() {
+  public getConstrainResolution(): boolean {
     return this.get('constrainResolution');
   }
 
@@ -911,7 +902,7 @@ class View extends BaseObject {
    * @param {Array<number>} [hints] Destination array.
    * @return {Array<number>} Hint.
    */
-  getHints(hints) {
+  public getHints(hints: number[]): number[] {
     if (hints !== undefined) {
       hints[0] = this.hints_[0];
       hints[1] = this.hints_[1];
@@ -940,7 +931,7 @@ class View extends BaseObject {
    * the map's last known viewport size will be used.
    * @return {import("./extent").Extent} Extent.
    */
-  calculateExtentInternal(size) {
+  protected calculateExtentInternal(size: Size): Extent {
     size = size || this.getViewportSizeMinusPadding_();
     const center = /** @type {!import("./coordinate").Coordinate} */ (
       this.getCenterInternal()
@@ -1096,8 +1087,7 @@ class View extends BaseObject {
        * @return {number} Resolution.
        */
       function (value) {
-        const resolution = maxResolution / Math.pow(power, value * max);
-        return resolution;
+        return maxResolution / Math.pow(power, value * max);
       }
     );
   }
@@ -1128,9 +1118,8 @@ class View extends BaseObject {
        * @param {number} resolution Resolution.
        * @return {number} Value.
        */
-      function (resolution) {
-        const value = Math.log(maxResolution / resolution) / logPower / max;
-        return value;
+      function (resolution: number): number {
+        return Math.log(maxResolution / resolution) / logPower / max;
       }
     );
   }
@@ -1763,7 +1752,7 @@ class View extends BaseObject {
    * (depending on its constraints).
    * @api
    */
-  beginInteraction() {
+  public beginInteraction(): void {
     this.resolveConstraints(0);
 
     this.setHint(ViewHint.INTERACTING, 1);
@@ -1777,7 +1766,7 @@ class View extends BaseObject {
    * @param {import("./coordinate").Coordinate} [anchor] The origin of the transformation.
    * @api
    */
-  endInteraction(duration, resolutionDirection, anchor) {
+  public endInteraction(duration?: number, resolutionDirection?: number, anchor?: Coordinate): void {
     anchor = anchor && fromUserCoordinate(anchor, this.getProjection());
     this.endInteractionInternal(duration, resolutionDirection, anchor);
   }
@@ -1789,7 +1778,7 @@ class View extends BaseObject {
    * @param {number} [resolutionDirection] Which direction to zoom.
    * @param {import("./coordinate").Coordinate} [anchor] The origin of the transformation.
    */
-  endInteractionInternal(duration, resolutionDirection, anchor) {
+  protected endInteractionInternal(duration?: number, resolutionDirection?: number, anchor?: Coordinate) {
     if (!this.getInteracting()) {
       return;
     }
@@ -1804,7 +1793,7 @@ class View extends BaseObject {
    * This is useful to guess a valid center position at a different zoom level.
    * @return {import("./coordinate").Coordinate|undefined} Valid center position.
    */
-  getConstrainedCenter(targetCenter: Coordinate, targetResolution?: number): Coordinate {
+  public getConstrainedCenter(targetCenter: Coordinate, targetResolution?: number): Coordinate {
     const size = this.getViewportSize_(this.getRotation());
     return this.constraints_.center(
       targetCenter,
@@ -1822,7 +1811,7 @@ class View extends BaseObject {
    * will be used. If -1, the nearest higher resolution will be used.
    * @return {number|undefined} Valid zoom level.
    */
-  getConstrainedZoom(targetZoom: number, direction = 0): number | undefineds {
+  public getConstrainedZoom(targetZoom: number, direction: number = 0): number | undefined {
     const targetRes = this.getResolutionForZoom(targetZoom);
     return this.getZoomForResolution(
       this.getConstrainedResolution(targetRes, direction)
@@ -1850,7 +1839,7 @@ class View extends BaseObject {
  * @param {Function} callback Callback.
  * @param {*} returnValue Return value.
  */
-function animationCallback(callback, returnValue) {
+function animationCallback(callback: Function, returnValue: any): void {
   setTimeout(function () {
     callback(returnValue);
   }, 0);
@@ -1860,7 +1849,7 @@ function animationCallback(callback, returnValue) {
  * @param {ViewOptions} options View options.
  * @return {import("./centerconstraint").Type} The constraint.
  */
-export function createCenterConstraint(options) {
+export function createCenterConstraint(options: ViewOptions): CenterConstraintType {
   if (options.extent !== undefined) {
     const smooth =
       options.smoothExtentConstraint !== undefined
@@ -1885,10 +1874,16 @@ export function createCenterConstraint(options) {
  * @return {{constraint: import("./resolutionconstraint").Type, maxResolution: number,
  *     minResolution: number, minZoom: number, zoomFactor: number}} The constraint.
  */
-export function createResolutionConstraint(options) {
-  let resolutionConstraint;
-  let maxResolution;
-  let minResolution;
+export function createResolutionConstraint(options: ViewOptions): {
+    constraint: ResolutionConstraintType;
+    maxResolution: number;
+    minResolution: number;
+    minZoom: number;
+    zoomFactor: number;
+} {
+  let resolutionConstraint: ResolutionConstraintType;
+  let maxResolution: number;
+  let minResolution: number;
 
   // TODO: move these to be tl constants
   // see https://github.com/openlayers/openlayers/issues/2076

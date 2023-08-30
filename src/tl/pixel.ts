@@ -11,4 +11,4 @@
 
 export type Pixel = [number, number];
 
-export let nothing;
+export let nothing: any = null;

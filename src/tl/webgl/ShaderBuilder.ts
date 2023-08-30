@@ -3,9 +3,9 @@
  * @module tl/webgl/ShaderBuilder
  */
 import {colorToGlsl, numberToGlsl} from '../style/expressions';
-import {createDefaultStyle} from '../style/flat';
+import {createDefaultStyle, FlatStyle} from '../style/flat';
 
-const BASE_UNIFORMS = `uniform mat4 u_projectionMatrix;
+const BASE_UNIFORMS: string = `uniform mat4 u_projectionMatrix;
 uniform mat4 u_screenToWorldMatrix;
 uniform vec2 u_viewportSizePx;
 uniform float u_pixelRatio;
@@ -17,20 +17,20 @@ uniform vec4 u_renderExtent;
 uniform mediump int u_hitDetection;
 `;
 
-const DEFAULT_STYLE = createDefaultStyle();
+const DEFAULT_STYLE: FlatStyle = createDefaultStyle();
 
-/**
- * @typedef {Object} VaryingDescription
- * @property {string} name Varying name, as will be declared in the header.
- * @property {string} type Varying type, either `float`, `vec2`, `vec4`...
- * @property {string} expression Expression which will be assigned to the varying in the vertex shader, and
- * passed on to the fragment shader.
- */
+export type VaryingDescriptionType = 'float'|'vec2'|'vec3'|'vec4';
+
+export interface VaryingDescription {
+  name: string;
+  type: VaryingDescriptionType;
+  expression: string;
+}
 
 /**
  * @classdesc
  * This class implements a classic builder pattern for generating many different types of shaders.
- * Methods can be chained, e. g.:
+ * Methods can be chained, e.g.:
  *
  * ```js
  * const shader = new ShaderBuilder()
@@ -42,6 +42,26 @@ const DEFAULT_STYLE = createDefaultStyle();
  * ```
  */
 export class ShaderBuilder {
+
+  private uniforms_: string[];
+  private attributes_: string[];
+  private varyings_: VaryingDescription[];
+  private hasSymbol_: boolean;
+  private symbolSizeExpression_: string;
+  private symbolRotationExpression_: string;
+  private symbolOffsetExpression_: string;
+  private symbolColorExpression_: string;
+  private texCoordExpression_: string;
+  private discardExpression_: string;
+  private symbolRotateWithView_: boolean;
+  private hasStroke_: boolean;
+  private strokeWidthExpression_: string;
+  private strokeColorExpression_: string;
+  private hasFill_: boolean;
+  private fillColorExpression_: string;
+  private vertexShaderFunctions_: string[];
+  private fragmentShaderFunctions_: string[];
+  
   constructor() {
     /**
      * Uniforms; these will be declared in the header (should include the type).
@@ -169,7 +189,7 @@ export class ShaderBuilder {
    * @param {string} name Uniform name
    * @return {ShaderBuilder} the builder object
    */
-  addUniform(name) {
+  public addUniform(name: string): ShaderBuilder {
     this.uniforms_.push(name);
     return this;
   }
@@ -180,7 +200,7 @@ export class ShaderBuilder {
    * @param {string} name Attribute name
    * @return {ShaderBuilder} the builder object
    */
-  addAttribute(name) {
+  public addAttribute(name: string): ShaderBuilder {
     this.attributes_.push(name);
     return this;
   }
@@ -193,7 +213,7 @@ export class ShaderBuilder {
    * @param {string} expression Expression used to assign a value to the varying.
    * @return {ShaderBuilder} the builder object
    */
-  addVarying(name, type, expression) {
+  public addVarying(name: string, type: VaryingDescriptionType, expression: string): ShaderBuilder {
     this.varyings_.push({
       name: name,
       type: type,
@@ -209,7 +229,7 @@ export class ShaderBuilder {
    * @param {string} expression Size expression
    * @return {ShaderBuilder} the builder object
    */
-  setSymbolSizeExpression(expression) {
+  public setSymbolSizeExpression(expression: string): ShaderBuilder {
     this.hasSymbol_ = true;
     this.symbolSizeExpression_ = expression;
     return this;
@@ -218,7 +238,7 @@ export class ShaderBuilder {
   /**
    * @return {string} The current symbol size expression
    */
-  getSymbolSizeExpression() {
+  public getSymbolSizeExpression(): string {
     return this.symbolSizeExpression_;
   }
 
@@ -229,7 +249,7 @@ export class ShaderBuilder {
    * @param {string} expression Size expression
    * @return {ShaderBuilder} the builder object
    */
-  setSymbolRotationExpression(expression) {
+  public setSymbolRotationExpression(expression: string): ShaderBuilder {
     this.symbolRotationExpression_ = expression;
     return this;
   }
@@ -241,7 +261,7 @@ export class ShaderBuilder {
    * @param {string} expression Offset expression
    * @return {ShaderBuilder} the builder object
    */
-  setSymbolOffsetExpression(expression) {
+  public setSymbolOffsetExpression(expression: string): ShaderBuilder {
     this.symbolOffsetExpression_ = expression;
     return this;
   }
@@ -253,7 +273,7 @@ export class ShaderBuilder {
    * @param {string} expression Color expression
    * @return {ShaderBuilder} the builder object
    */
-  setSymbolColorExpression(expression) {
+  public setSymbolColorExpression(expression: string): ShaderBuilder {
     this.hasSymbol_ = true;
     this.symbolColorExpression_ = expression;
     return this;
@@ -262,7 +282,7 @@ export class ShaderBuilder {
   /**
    * @return {string} The current symbol color expression
    */
-  getSymbolColorExpression() {
+  public getSymbolColorExpression(): string {
     return this.symbolColorExpression_;
   }
 
@@ -273,7 +293,7 @@ export class ShaderBuilder {
    * @param {string} expression Texture coordinate expression
    * @return {ShaderBuilder} the builder object
    */
-  setTextureCoordinateExpression(expression) {
+  public setTextureCoordinateExpression(expression: string): ShaderBuilder {
     this.texCoordExpression_ = expression;
     return this;
   }
@@ -287,7 +307,7 @@ export class ShaderBuilder {
    * @param {string} expression Fragment discard expression
    * @return {ShaderBuilder} the builder object
    */
-  setFragmentDiscardExpression(expression) {
+  public setFragmentDiscardExpression(expression: string): ShaderBuilder {
     this.discardExpression_ = expression;
     return this;
   }
@@ -298,7 +318,7 @@ export class ShaderBuilder {
    * @param {boolean} rotateWithView Rotate with view
    * @return {ShaderBuilder} the builder object
    */
-  setSymbolRotateWithView(rotateWithView) {
+  public setSymbolRotateWithView(rotateWithView: boolean): ShaderBuilder {
     this.symbolRotateWithView_ = rotateWithView;
     return this;
   }
@@ -307,7 +327,7 @@ export class ShaderBuilder {
    * @param {string} expression Stroke width expression, returning value in pixels
    * @return {ShaderBuilder} the builder object
    */
-  setStrokeWidthExpression(expression) {
+  public setStrokeWidthExpression(expression: string): ShaderBuilder {
     this.hasStroke_ = true;
     this.strokeWidthExpression_ = expression;
     return this;
@@ -317,7 +337,7 @@ export class ShaderBuilder {
    * @param {string} expression Stroke color expression, evaluate to `vec4`
    * @return {ShaderBuilder} the builder object
    */
-  setStrokeColorExpression(expression) {
+  setStrokeColorExpression(expression: string): ShaderBuilder {
     this.hasStroke_ = true;
     this.strokeColorExpression_ = expression;
     return this;
@@ -327,19 +347,19 @@ export class ShaderBuilder {
    * @param {string} expression Fill color expression, evaluate to `vec4`
    * @return {ShaderBuilder} the builder object
    */
-  setFillColorExpression(expression) {
+  public setFillColorExpression(expression: string): ShaderBuilder {
     this.hasFill_ = true;
     this.fillColorExpression_ = expression;
     return this;
   }
 
-  addVertexShaderFunction(code) {
+  public addVertexShaderFunction(code: string): void {
     if (this.vertexShaderFunctions_.includes(code)) {
       return;
     }
     this.vertexShaderFunctions_.push(code);
   }
-  addFragmentShaderFunction(code) {
+  public addFragmentShaderFunction(code: string): void {
     if (this.fragmentShaderFunctions_.includes(code)) {
       return;
     }
@@ -360,7 +380,7 @@ export class ShaderBuilder {
    *
    * @return {string|null} The full shader as a string; null if no size or color specified
    */
-  getSymbolVertexShader() {
+  public getSymbolVertexShader(): string {
     if (!this.hasSymbol_) {
       return null;
     }
@@ -446,7 +466,7 @@ ${this.varyings_
    *
    * @return {string|null} The full shader as a string; null if no size or color specified
    */
-  getSymbolFragmentShader() {
+  public getSymbolFragmentShader(): string {
     if (!this.hasSymbol_) {
       return null;
     }
@@ -485,7 +505,7 @@ void main(void) {
    * Generates a stroke vertex shader from the builder parameters
    * @return {string|null} The full shader as a string; null if no size or color specified
    */
-  getStrokeVertexShader() {
+  public getStrokeVertexShader(): string {
     if (!this.hasStroke_) {
       return null;
     }
@@ -578,7 +598,7 @@ ${this.varyings_
    *
    * @return {string|null} The full shader as a string; null if no size or color specified
    */
-  getStrokeFragmentShader() {
+  public getStrokeFragmentShader(): string {
     if (!this.hasStroke_) {
       return null;
     }
@@ -649,7 +669,7 @@ void main(void) {
    *
    * @return {string|null} The full shader as a string; null if no color specified
    */
-  getFillVertexShader() {
+  public getFillVertexShader(): string {
     if (!this.hasFill_) {
       return null;
     }
@@ -693,7 +713,7 @@ ${this.varyings_
    * Generates a fill fragment shader from the builder parameters
    * @return {string|null} The full shader as a string; null if no color specified
    */
-  getFillFragmentShader() {
+  public getFillFragmentShader(): string {
     if (!this.hasFill_) {
       return null;
     }

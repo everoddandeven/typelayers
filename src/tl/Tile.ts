@@ -4,7 +4,6 @@
 import EventTarget from './events/Target';
 import EventType from './events/EventType';
 import TileState from './TileState';
-import {abstract} from './util';
 import {easeIn} from './easing';
 import {TileCoord} from "./tilecoord";
 import Projection from "./proj/Projection";
@@ -17,7 +16,7 @@ import Projection from "./proj/Projection";
  *   tile.getImage().src = src;
  * });
  * ```
- * For more fine grained control, the load function can use fetch or XMLHttpRequest and involve
+ * For more fine-grained control, the load function can use fetch or XMLHttpRequest and involve
  * error handling:
  *
  * ```js
@@ -65,7 +64,7 @@ export type TileLoadFunction = (tile: Tile, src: string) => void;
 
 export type UrlFunction = (coord: TileCoord, pixelRatio: number, projection: Projection) => string | undefined;
 
-interface TileOptions {
+export interface TileOptions {
   transition?: number;
   interpolate?: boolean;
 }
@@ -219,7 +218,7 @@ abstract class Tile extends EventTarget {
     do {
       if (tile.getState() == TileState.LOADED) {
         //we have a loaded tile, we can discard the rest of the list
-        //we would could abort any LOADING tile request
+        //we could abort any LOADING tile request
         //older than this tile (i.e. any LOADING tile following this entry in the chain)
         tile.interimTile = null;
         break;
@@ -257,7 +256,7 @@ abstract class Tile extends EventTarget {
   /**
    * Sets the state of this tile. If you write your own {@link module:tl/Tile~LoadFunction tileLoadFunction} ,
    * it is important to set the state correctly to {@link module:tl/TileState~ERROR}
-   * when the tile cannot be loaded. Otherwise the tile cannot be removed from
+   * when the tile cannot be loaded. Otherwise, the tile cannot be removed from
    * the tile queue and will block other requests.
    * @param {import("./TileState").default} state SourceState.
    * @api
@@ -323,7 +322,7 @@ abstract class Tile extends EventTarget {
    * Mark a transition as complete.
    * @param {string} id An id for the renderer.
    */
-  public endTransition(id): void {
+  public endTransition(id: string): void {
     if (this.transition_) {
       this.transitionStarts_[id] = -1;
     }
