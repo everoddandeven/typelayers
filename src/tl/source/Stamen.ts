@@ -4,12 +4,14 @@
 
 import XYZ from './XYZ';
 import {ATTRIBUTION as OSM_ATTRIBUTION} from './OSM';
+import {TileLoadFunction} from "../Tile";
+import {NearestDirectionFunction} from "../array";
 
 /**
  * @const
  * @type {Array<string>}
  */
-const ATTRIBUTIONS = [
+const ATTRIBUTIONS: string[] = [
   'Map tiles by <a href="https://stamen.com/" target="_blank">Stamen Design</a>, ' +
     'under <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank">CC BY' +
     ' 3.0</a>.',
@@ -19,7 +21,7 @@ const ATTRIBUTIONS = [
 /**
  * @type {Object<string, {extension: string, opaque: boolean}>}
  */
-const LayerConfig = {
+const LayerConfig: {[key: string]: { extension: string, opaque: boolean }} = {
   'terrain': {
     extension: 'png',
     opaque: true,
@@ -69,7 +71,7 @@ const LayerConfig = {
 /**
  * @type {Object<string, {minZoom: number, maxZoom: number}>}
  */
-const ProviderConfig = {
+const ProviderConfig: {[key: string]: { minZoom: number, maxZoom: number }} = {
   'terrain': {
     minZoom: 0,
     maxZoom: 18,
@@ -84,31 +86,19 @@ const ProviderConfig = {
   },
 };
 
-/**
- * @typedef {Object} Options
- * @property {number} [cacheSize] Initial tile cache size. Will auto-grow to hold at least the number of tiles in the viewport.
- * @property {boolean} [interpolate=true] Use interpolated values when resampling.  By default,
- * linear interpolation is used when resampling.  Set to false to use the nearest neighbor instead.
- * @property {string} layer Layer name.
- * @property {number} [minZoom] Minimum zoom.
- * @property {number} [maxZoom] Maximum zoom.
- * @property {number} [reprojectionErrorThreshold=0.5] Maximum allowed reprojection error (in pixels).
- * Higher values can increase reprojection performance, but decrease precision.
- * @property {import("../Tile").LoadFunction} [tileLoadFunction]
- * Optional function to load a tile given a URL. The default is
- * ```js
- * function(imageTile, src) {
- *   imageTile.getImage().src = src;
- * };
- * ```
- * @property {number} [transition=250] Duration of the opacity transition for rendering.
- * To disable the opacity transition, pass `transition: 0`.
- * @property {string} [url] URL template. Must include `{x}`, `{y}` or `{-y}`, and `{z}` placeholders.
- * @property {boolean} [wrapX=true] Whether to wrap the world horizontally.
- * @property {number|import("../array").NearestDirectionFunction} [zDirection=0]
- * Choose whether to use tiles with a higher or lower zoom level when between integer
- * zoom levels. See {@link module:tl/tilegrid/TileGrid~TileGrid#getZForResolution}.
- */
+export interface StamenOptions {
+  cacheSize?: number;
+  interpolate?: boolean;
+  layer: string;
+  minZoom?: number;
+  maxZoom?: number;
+  reprojectionErrorThreshold?: number;
+  tileLoadFunction?: TileLoadFunction;
+  transition?: number;
+  url?: string;
+  wrapX?: boolean;
+  zDirection?: number | NearestDirectionFunction;
+}
 
 /**
  * @classdesc
@@ -119,14 +109,14 @@ class Stamen extends XYZ {
   /**
    * @param {Options} options Stamen options.
    */
-  constructor(options) {
+  constructor(options: StamenOptions) {
     const i = options.layer.indexOf('-');
     const provider = i == -1 ? options.layer : options.layer.slice(0, i);
     const providerConfig = ProviderConfig[provider];
 
     const layerConfig = LayerConfig[options.layer];
 
-    const url =
+    const url: string =
       options.url !== undefined
         ? options.url
         : 'https://stamen-tiles-{a-d}.a.ssl.fastly.net/' +

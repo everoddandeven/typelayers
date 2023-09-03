@@ -3,34 +3,27 @@
  */
 import Layer from './Layer';
 import WebGLPointsLayerRenderer from '../renderer/webgl/PointsLayer';
-import {parseLiteralStyle} from '../webgl/styleparser';
+import {parseLiteralStyle, StyleParseResult} from '../webgl/styleparser';
+import VectorSource from "../source/Vector";
+import {Point} from "../geom";
+import {Extent} from "../extent";
+import {LiteralStyle} from "../style/literal";
 
-/**
- * @template {import("../source/Vector").default<import("../geom/Point").default>} VectorSourceType
- * @typedef {Object} Options
- * @property {import('../style/literal').LiteralStyle} style Literal style to apply to the layer features.
- * @property {string} [className='tl-layer'] A CSS class name to set to the layer element.
- * @property {number} [opacity=1] Opacity (0, 1).
- * @property {boolean} [visible=true] Visibility.
- * @property {import("../extent").Extent} [extent] The bounding extent for layer rendering.  The layer will not be
- * rendered outside of this extent.
- * @property {number} [zIndex] The z-index for layer rendering.  At rendering time, the layers
- * will be ordered, first by Z-index and then by position. When `undefined`, a `zIndex` of 0 is assumed
- * for layers that are added to the map's `layers` collection, or `Infinity` when the layer's `setMap()`
- * method was used.
- * @property {number} [minResolution] The minimum resolution (inclusive) at which this layer will be
- * visible.
- * @property {number} [maxResolution] The maximum resolution (exclusive) below which this layer will
- * be visible.
- * @property {number} [minZoom] The minimum view zoom level (exclusive) above which this layer will be
- * visible.
- * @property {number} [maxZoom] The maximum view zoom level (inclusive) at which this layer will
- * be visible.
- * @property {VectorSourceType} [source] Point source.
- * @property {boolean} [disableHitDetection=false] Setting this to true will provide a slight performance boost, but will
- * prevent all hit detection on the layer.
- * @property {Object<string, *>} [properties] Arbitrary observable properties. Can be accessed with `#get()` and `#set()`.
- */
+export interface WebGLPointsLayerOptions<VectorSourceType extends VectorSource<Point> = VectorSource<Point>> {
+  style: LiteralStyle;
+  className?: string;
+  opacity?: number;
+  visible?: boolean;
+  extent?: Extent;
+  zIndex?: number;
+  minResolution?: number;
+  maxResolution?: number;
+  minZoom?: number;
+  maxZoom?: number;
+  source?: VectorSourceType;
+  disableHitDetection?: boolean;
+  properties?: {[key: string]: any};
+}
 
 /**
  * @classdesc
@@ -71,11 +64,14 @@ import {parseLiteralStyle} from '../webgl/styleparser';
  * @extends {Layer<VectorSourceType, WebGLPointsLayerRenderer>}
  * @fires import("../render/Event").RenderEvent
  */
-class WebGLPointsLayer extends Layer {
+class WebGLPointsLayer<VectorSourceType extends VectorSource<Point> = VectorSource<Point>> extends Layer<VectorSourceType, WebGLPointsLayerRenderer> {
+  private parseResult_: StyleParseResult;
+  private styleVariables_: { [p: string]: number | number[] | string | boolean };
+  private hitDetectionDisabled_: boolean;
   /**
    * @param {Options<VectorSourceType>} options Options.
    */
-  constructor(options) {
+  constructor(options: WebGLPointsLayerOptions<VectorSourceType>) {
     const baseOptions = Object.assign({}, options);
 
     super(baseOptions);
@@ -99,7 +95,7 @@ class WebGLPointsLayer extends Layer {
     this.hitDetectionDisabled_ = !!options.disableHitDetection;
   }
 
-  createRenderer() {
+  public createRenderer(): WebGLPointsLayerRenderer {
     const attributes = Object.keys(this.parseResult_.attributes).map(
       (name) => ({
         name,
@@ -122,7 +118,7 @@ class WebGLPointsLayer extends Layer {
    * Update any variables used by the layer style and trigger a re-render.
    * @param {Object<string, number>} variables Variables to update.
    */
-  updateStyleVariables(variables) {
+  public updateStyleVariables(variables: {[key: string]: number}): void {
     Object.assign(this.styleVariables_, variables);
     this.changed();
   }

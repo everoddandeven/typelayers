@@ -3,12 +3,12 @@
  */
 import Interaction, {zoomByDelta} from './Interaction';
 import MapBrowserEventType from '../MapBrowserEventType';
+import {MapBrowserEvent} from "../index";
 
-/**
- * @typedef {Object} Options
- * @property {number} [duration=250] Animation duration in milliseconds.
- * @property {number} [delta=1] The zoom delta applied on each double click.
- */
+export interface DoubleClickZoomOptions {
+  duration?: number;
+  delta?: number;
+}
 
 /**
  * @classdesc
@@ -16,10 +16,13 @@ import MapBrowserEventType from '../MapBrowserEventType';
  * @api
  */
 class DoubleClickZoom extends Interaction {
+  private delta_: number;
+  private duration_: number;
+
   /**
    * @param {Options} [options] Options.
    */
-  constructor(options) {
+  constructor(options?: DoubleClickZoomOptions) {
     super();
 
     options = options ? options : {};
@@ -39,15 +42,15 @@ class DoubleClickZoom extends Interaction {
 
   /**
    * Handles the {@link module:tl/MapBrowserEvent~MapBrowserEvent map browser event} (if it was a
-   * doubleclick) and eventually zooms the map.
+   * double click) and eventually zooms the map.
    * @param {import("../MapBrowserEvent").default} mapBrowserEvent Map browser event.
    * @return {boolean} `false` to stop event propagation.
    */
-  handleEvent(mapBrowserEvent) {
+  public handleEvent(mapBrowserEvent: MapBrowserEvent): boolean {
     let stopEvent = false;
     if (mapBrowserEvent.type == MapBrowserEventType.DBLCLICK) {
       const browserEvent = /** @type {MouseEvent} */ (
-        mapBrowserEvent.originalEvent
+        <MouseEvent>mapBrowserEvent.originalEvent
       );
       const map = mapBrowserEvent.map;
       const anchor = mapBrowserEvent.coordinate;

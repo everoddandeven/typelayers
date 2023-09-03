@@ -5,6 +5,8 @@
 /**
  * @enum {string}
  */
-export default {
-  ACTIVE: 'active',
-};
+enum Property {
+  ACTIVE = 'active',
+}
+
+export default Property;

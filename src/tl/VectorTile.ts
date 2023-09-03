@@ -5,7 +5,7 @@ import Tile, {TileLoadFunction} from './Tile';
 import TileState from './TileState';
 import {TileCoord} from "./tilecoord";
 import FeatureFormat from "./format/Feature";
-import {TileOptions} from "./DataTile";
+import {TileOptions} from "./Tile";
 import {Extent} from "./extent/Extent";
 import Feature from "./Feature";
 import Projection from "./proj/Projection";

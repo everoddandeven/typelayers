@@ -36,7 +36,7 @@ export interface InteractionOptions {
  * vectors and so are visible on the screen.
  * @api
  */
-class Interaction extends BaseObject {
+abstract class Interaction extends BaseObject {
   /**
    * @param {InteractionOptions} [options] Options.
    */
@@ -46,7 +46,7 @@ class Interaction extends BaseObject {
   public un: InteractionOnSignature<void>;
   private map_: Map | null;
 
-  constructor(options?: InteractionOptions) {
+  protected constructor(options?: InteractionOptions) {
     super();
 
     if (options && options.handleEvent) {
@@ -135,7 +135,7 @@ export function pan(view: View, delta: Coordinate, duration?: number): void {
  * @param {import("../coordinate").Coordinate} [anchor] Anchor coordinate in the user projection.
  * @param {number} [duration] Duration.
  */
-export function zoomByDelta(view: View, delta: Coordinate, anchor?: Coordinate, duration?: number): void {
+export function zoomByDelta(view: View, delta: number, anchor?: Coordinate, duration?: number): void {
   const currentZoom = view.getZoom();
 
   if (currentZoom === undefined) {

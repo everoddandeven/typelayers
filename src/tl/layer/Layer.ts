@@ -2,9 +2,9 @@
  * @module tl/layer/Layer
  */
 import BaseLayer, {BaseLayerObjectEventTypes} from './Base';
-import EventType from '../events/EventType';
+import EventTypes from '../events/EventType';
 import LayerProperty from './Property';
-import EventType, {LayerRenderEventTypes} from '../render/EventType';
+import EventType, {LayerRenderEventTypes, RenderEventType} from '../render/EventType';
 import View, {ViewState, ViewStateLayerStateExtent} from '../View';
 import {assert} from '../asserts';
 import {intersects} from '../extent';
@@ -12,7 +12,7 @@ import {EventsKey, listen, unlistenByKey} from '../events';
 import {Extent} from "../extent/Extent";
 import {FrameState} from "../Map";
 import BaseEvent from "../events/Event";
-import {CombinedOnSignature, EventTypes, OnSignature} from "../Observable";
+import {CombinedOnSignature, ObservableEventTypes, OnSignature} from "../Observable";
 import {ObjectEvent} from "../Object";
 import RenderEvent from "../render/Event";
 import Source, {SourceState} from "../source/Source";
@@ -49,7 +49,7 @@ export interface LayerOptions<SourceType extends Source = Source> {
 
 export interface LayerState
 {
-  layer?: Layer,
+  layer?: BaseLayer,
   opacity?: number;
   visible?: boolean,
   managed?: boolean,
@@ -87,12 +87,12 @@ export interface LayerState
  * @template {import("../renderer/Layer").default} [RendererType=import("../renderer/Layer").default]
  * @api
  */
-class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer = LayerRenderer> extends BaseLayer {
+class Layer<SourceType extends Source = Source, LayerRendererType extends LayerRenderer = LayerRenderer> extends BaseLayer {
   private mapPrecomposeKey_: EventsKey;
   private mapRenderKey_: EventsKey;
   private sourceChangeKey_: EventsKey;
   private sourceReady_: boolean;
-  private renderer_: RenderType; // RenderType
+  private renderer_: LayerRendererType; // LayerRendererType
   protected rendered: boolean;
   /**
    * @param {Options<SourceType>} options Layer options.
@@ -178,7 +178,7 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
    * @param {Array<import("./Layer").default>} [array] Array of layers (to be modified in place).
    * @return {Array<import("./Layer").default>} Array of layers.
    */
-  public getLayersArray(array: Layer<SourceType, RenderType>[]): Layer<SourceType, RenderType>[] {
+  public getLayersArray(array: Layer<SourceType, LayerRendererType>[]): Layer<SourceType, LayerRendererType>[] {
     array = array ? array : [];
     array.push(this);
     return array;
@@ -200,14 +200,14 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
    * @observable
    * @api
    */
-  public getSource(): Source | null {
-    return /** @type {SourceType} */ (<Source>this.get(LayerProperty.SOURCE)) || null;
+  public getSource(): SourceType | null {
+    return /** @type {SourceType} */ (<SourceType>this.get(LayerProperty.SOURCE)) || null;
   }
 
   /**
    * @return {SourceType|null} The source being rendered.
    */
-  public getRenderSource(): Source | null {
+  public getRenderSource(): SourceType | null {
     return this.getSource();
   }
 
@@ -290,7 +290,7 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
    * @return {boolean} The layer is visible in the map view.
    * @api
    */
-  public isVisible(view?: FrameState | ViewStateLayerStateExtent): boolean {
+  public isVisible(view?: View | FrameState | ViewStateLayerStateExtent): boolean {
     let frameState;
     const map = this.getMapInternal();
     if (!view && map) {
@@ -331,7 +331,7 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
    * @return {Array<string>} Attributions for this layer at the given view.
    * @api
    */
-  public getAttributions(view) {
+  public getAttributions(view?: View | ViewStateLayerStateExtent | FrameState): string[] {
     if (!this.isVisible(view)) {
       return [];
     }
@@ -373,7 +373,7 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
   /**
    * Called when a layer is not visible during a map render.
    */
-  unrender() {
+  public unrender(): void {
     this.rendered = false;
   }
 
@@ -381,18 +381,22 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
    * For use inside the library only.
    * @param {import("../Map").default|null} map Map.
    */
-  setMapInternal(map) {
+  protected setMapInternal(map: Map | null): void {
     if (!map) {
       this.unrender();
     }
     this.set(LayerProperty.MAP, map);
   }
 
+  public getMap(): Map | null {
+    return this.getMapInternal();
+  }
+
   /**
    * For use inside the library only.
    * @return {import("../Map").default|null} Map.
    */
-  getMapInternal() {
+  protected getMapInternal(): Map | null {
     return this.get(LayerProperty.MAP);
   }
 
@@ -407,7 +411,7 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
    * @param {import("../Map").default|null} map Map.
    * @api
    */
-  setMap(map) {
+  public setMap(map: Map): void {
     if (this.mapPrecomposeKey_) {
       unlistenByKey(this.mapPrecomposeKey_);
       this.mapPrecomposeKey_ = null;
@@ -450,7 +454,7 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
    * @observable
    * @api
    */
-  setSource(source) {
+  public setSource(source: SourceType): void {
     this.set(LayerProperty.SOURCE, source);
   }
 
@@ -458,7 +462,7 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
    * Get the renderer for this layer.
    * @return {LayerRendererType|null} The layer renderer.
    */
-  public getRenderer(): RenderType {
+  public getRenderer(): LayerRendererType {
     if (!this.renderer_) {
       this.renderer_ = this.createRenderer();
     }
@@ -469,7 +473,7 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
   /**
    * @return {boolean} The layer has a renderer.
    */
-  hasRenderer() {
+  public hasRenderer(): boolean {
     return !!this.renderer_;
   }
 
@@ -478,7 +482,7 @@ class Layer<SourceType extends Source = Source, RenderType extends LayerRenderer
    * @return {LayerRendererType} A layer renderer.
    * @protected
    */
-  createRenderer() {
+  protected createRenderer(): LayerRendererType {
     return null;
   }
 

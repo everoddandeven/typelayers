@@ -44,7 +44,7 @@ export type ImageInformationResponse = {[key:string]: IiiProfileLike};
  * Enum representing the major IIIF Image API versions
  * @enum {string}
  */
-export enum Versions {
+export enum IIIFVersions {
   VERSION1 = 'version1',
   VERSION2 = 'version2',
   VERSION3 = 'version3',
@@ -57,7 +57,7 @@ export enum Versions {
  * @type {Object<string, Object<string, SupportedFeatures>>}
  */
 const IIIF_PROFILE_VALUES: {[key: string]: {[key: string]: SupportedFeatures}} = {};
-IIIF_PROFILE_VALUES[Versions.VERSION1] = {
+IIIF_PROFILE_VALUES[IIIFVersions.VERSION1] = {
   'level0': {
     supports: [],
     formats: [],
@@ -82,7 +82,7 @@ IIIF_PROFILE_VALUES[Versions.VERSION1] = {
     qualities: ['native', 'color', 'grey', 'bitonal'],
   },
 };
-IIIF_PROFILE_VALUES[Versions.VERSION2] = {
+IIIF_PROFILE_VALUES[IIIFVersions.VERSION2] = {
   'level0': {
     supports: [],
     formats: ['jpg'],
@@ -108,7 +108,7 @@ IIIF_PROFILE_VALUES[Versions.VERSION2] = {
     qualities: ['default', 'bitonal'],
   },
 };
-IIIF_PROFILE_VALUES[Versions.VERSION3] = {
+IIIF_PROFILE_VALUES[IIIFVersions.VERSION3] = {
   'level0': {
     supports: [],
     formats: ['jpg'],
@@ -153,7 +153,7 @@ function generateVersion1Options(iiifInfo) {
   let levelProfile = iiifInfo.getComplianceLevelSupportedFeatures();
   // Version 1.0 and 1.1 do not require a profile.
   if (levelProfile === undefined) {
-    levelProfile = IIIF_PROFILE_VALUES[Versions.VERSION1]['level0'];
+    levelProfile = IIIF_PROFILE_VALUES[IIIFVersions.VERSION1]['level0'];
   }
   return {
     url:
@@ -292,9 +292,9 @@ function generateVersion3Options(iiifInfo) {
 }
 
 const versionFunctions = {};
-versionFunctions[Versions.VERSION1] = generateVersion1Options;
-versionFunctions[Versions.VERSION2] = generateVersion2Options;
-versionFunctions[Versions.VERSION3] = generateVersion3Options;
+versionFunctions[IIIFVersions.VERSION1] = generateVersion1Options;
+versionFunctions[IIIFVersions.VERSION2] = generateVersion2Options;
+versionFunctions[IIIFVersions.VERSION3] = generateVersion3Options;
 
 /**
  * @classdesc
@@ -327,10 +327,10 @@ class IIIFInfo {
   }
 
   /**
-   * @return {Versions|undefined} Major IIIF version.
+   * @return {IIIFVersions|undefined} Major IIIF version.
    * @api
    */
-  public getImageApiVersion(): Versions | undefined {
+  public getImageApiVersion(): IIIFVersions | undefined {
     if (this.imageInfo === undefined) {
       return undefined;
     }
@@ -342,18 +342,18 @@ class IIIFInfo {
       switch (context[i]) {
         case 'http://library.stanford.edu/iiif/image-api/1.1/contexton':
         case 'http://iiif.io/api/image/1/contexton':
-          return Versions.VERSION1;
+          return IIIFVersions.VERSION1;
         case 'http://iiif.io/api/image/2/contexton':
-          return Versions.VERSION2;
+          return IIIFVersions.VERSION2;
         case 'http://iiif.io/api/image/3/contexton':
-          return Versions.VERSION3;
+          return IIIFVersions.VERSION3;
         case 'tl-no-context':
           // Image API 1.0 has no '@context'
           if (
-            this.getComplianceLevelEntryFromProfile(Versions.VERSION1) &&
+            this.getComplianceLevelEntryFromProfile(IIIFVersions.VERSION1) &&
             this.imageInfo.identifier
           ) {
-            return Versions.VERSION1;
+            return IIIFVersions.VERSION1;
           }
           break;
         default:
@@ -363,11 +363,11 @@ class IIIFInfo {
   }
 
   /**
-   * @param {Versions} version Optional IIIF image API version
+   * @param {IIIFVersions} version Optional IIIF image API version
    * @return {string|undefined} Compliance level as it appears in the IIIF image information
    * response.
    */
-  public getComplianceLevelEntryFromProfile(version: Versions): IiiProfileLike {
+  public getComplianceLevelEntryFromProfile(version: IIIFVersions): IiiProfileLike {
     if (this.imageInfo === undefined || this.imageInfo.profile === undefined) {
       return undefined;
     }
@@ -375,17 +375,17 @@ class IIIFInfo {
       version = this.getImageApiVersion();
     }
     switch (version) {
-      case Versions.VERSION1:
+      case IIIFVersions.VERSION1:
         if (COMPLIANCE_VERSION1.test(<string>this.imageInfo.profile)) {
           return this.imageInfo.profile;
         }
         break;
-      case Versions.VERSION3:
+      case IIIFVersions.VERSION3:
         if (COMPLIANCE_VERSION3.test(<string>this.imageInfo.profile)) {
           return this.imageInfo.profile;
         }
         break;
-      case Versions.VERSION2:
+      case IIIFVersions.VERSION2:
         if (
           typeof this.imageInfo.profile === 'string' &&
           COMPLIANCE_VERSION2.test(this.imageInfo.profile)
@@ -407,10 +407,10 @@ class IIIFInfo {
   }
 
   /**
-   * @param {Versions} version Optional IIIF image API version
+   * @param {IIIFVersions} version Optional IIIF image API version
    * @return {string} Compliance level, on of 'level0', 'level1' or 'level2' or undefined
    */
-  public getComplianceLevelFromProfile(version: Versions): string {
+  public getComplianceLevelFromProfile(version: IIIFVersions): string {
     const complianceLevel = this.getComplianceLevelEntryFromProfile(version);
     if (complianceLevel === undefined) {
       return undefined;

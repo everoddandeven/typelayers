@@ -23,15 +23,13 @@ import {EventsKey} from "../events";
 import Tile, {TileOptions} from "../Tile";
 import Projection from "../proj/Projection";
 import TileRange from "../TileRange";
+import {NearestDirectionFunction} from "../array";
 
 export type TileSourceOnSignature <Return>= OnSignature<EventTypes, BaseEvent, Return> &
     OnSignature<ObjectEventTypes, ObjectEvent, Return> &
     OnSignature<TileSourceEventTypes, TileSourceEvent, Return> &
     CombinedOnSignature<EventTypes | ObjectEventTypes |
         TileSourceEventTypes, Return>;
-
-class imNearestDirectionFunction {
-}
 
 export interface TileSourceOptions {
   attributions?: AttributionLike;
@@ -45,7 +43,7 @@ export interface TileSourceOptions {
   wrapX?: boolean;
   transition?: number;
   key?: string;
-  zDirection?: number | imNearestDirectionFunction;
+  zDirection?: number | NearestDirectionFunction;
   interpolate?: boolean;
 }
 
@@ -72,7 +70,7 @@ abstract class TileSource extends Source {
   protected tmpSize: Size;
   private key_: string;
   protected tileOptions: TileOptions;
-  public zDirection: number | imNearestDirectionFunction;
+  public zDirection: number | NearestDirectionFunction;
 
   protected constructor(options: TileSourceOptions) {
     super({

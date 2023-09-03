@@ -7,11 +7,11 @@ import Tile from '../VectorTile';
 import TileCache from '../TileCache';
 import TileGrid from '../tilegrid/TileGrid';
 import TileState from '../TileState';
-import UrlTile from './UrlTile';
+import UrlTileSource from './UrlTileSource';
 import VectorRenderTile from '../VectorRenderTile';
 import {DEFAULT_MAX_ZOOM} from '../tilegrid/common';
 import {
-  buffer as bufferExtent,
+  buffer as bufferExtent, Extent,
   getIntersection,
   intersects,
 } from '../extent';
@@ -19,72 +19,39 @@ import {createXYZ, extentFromProjection} from '../tilegrid';
 import {fromKey, getCacheKeyForTileKey, getKeyZXY} from '../tilecoord';
 import {isEmpty} from '../obj';
 import {loadFeaturesXhr} from '../featureloader';
-import {toSize} from '../size';
+import {Size, toSize} from '../size';
+import FeatureFormat from "../format/Feature";
+import {AttributionLike, SourceState} from "./Source";
+import {ProjectionLike} from "../proj";
+import {TileLoadFunction, UrlFunction} from "../Tile";
+import {NearestDirectionFunction} from "../array";
+import Projection from "../proj/Projection";
+import VectorTile from "../VectorTile";
+import Feature, {FeatureLike} from "../Feature";
 
-/**
- * @typedef {Object} Options
- * @property {import("./Source").AttributionLike} [attributions] Attributions.
- * @property {boolean} [attributionsCollapsible=true] Attributions are collapsible.
- * @property {number} [cacheSize] Initial tile cache size. Will auto-grow to hold at least twice the number of tiles in the viewport.
- * @property {import("../extent").Extent} [extent] Extent.
- * @property {import("../format/Feature").default} [format] Feature format for tiles. Used and required by the default.
- * @property {boolean} [overlaps=true] This source may have overlapping geometries. Setting this
- * to `false` (e.g. for sources with polygons that represent administrative
- * boundaries or TopoJSON sources) allows the renderer to optimise fill and
- * stroke operations.
- * @property {import("../proj").ProjectionLike} [projection='EPSG:3857'] Projection of the tile grid.
- * @property {import("./Source").SourceState} [state] Source state.
- * @property {typeof import("../VectorTile").default} [tileClass] Class used to instantiate image tiles.
- * Default is {@link module:tl/VectorTile~VectorTile}.
- * @property {number} [maxZoom=22] Optional max zoom level. Not used if `tileGrid` is provided.
- * @property {number} [minZoom] Optional min zoom level. Not used if `tileGrid` is provided.
- * @property {number|import("../size").Size} [tileSize=512] Optional tile size. Not used if `tileGrid` is provided.
- * @property {number} [maxResolution] Optional tile grid resolution at level zero. Not used if `tileGrid` is provided.
- * @property {import("../tilegrid/TileGrid").default} [tileGrid] Tile grid.
- * @property {import("../Tile").LoadFunction} [tileLoadFunction]
- * Optional function to load a tile given a URL. Could look like this for pbf tiles:
- * ```js
- * function(tile, url) {
- *   tile.setLoader(function(extent, resolution, projection) {
- *     fetch(url).then(function(response) {
- *       response.arrayBuffer().then(function(data) {
- *         const format = tile.getFormat() // tl/format/MVT configured as source format
- *         const features = format.readFeatures(data, {
- *           extent: extent,
- *           featureProjection: projection
- *         });
- *         tile.setFeatures(features);
- *       });
- *     });
- *   });
- * }
- * ```
- * If you do not need extent, resolution and projection to get the features for a tile (e.g.
- * for GeoJSON tiles), your `tileLoadFunction` does not need a `setLoader()` call. Only make sure
- * to call `setFeatures()` on the tile:
- * ```js
- * const format = new GeoJSON({featureProjection: map.getView().getProjection()});
- * async function tileLoadFunction(tile, url) {
- *   const response = await fetch(url);
- *   const data = await responseon();
- *   tile.setFeatures(format.readFeatures(data));
- * }
- * ```
- * @property {import("../Tile").UrlFunction} [tileUrlFunction] Optional function to get tile URL given a tile coordinate and the projection.
- * @property {string} [url] URL template. Must include `{x}`, `{y}` or `{-y}`, and `{z}` placeholders.
- * A `{?-?}` template pattern, for example `subdomain{a-f}.domain.com`, may be
- * used instead of defining each one separately in the `urls` option.
- * @property {number} [transition] A duration for tile opacity
- * transitions in milliseconds. A duration of 0 disables the opacity transition.
- * @property {Array<string>} [urls] An array of URL templates.
- * @property {boolean} [wrapX=true] Whether to wrap the world horizontally.
- * When set to `false`, only one world
- * will be rendered. When set to `true`, tiles will be wrapped horizontally to
- * render multiple worlds.
- * @property {number|import("../array").NearestDirectionFunction} [zDirection=1]
- * Choose whether to use tiles with a higher or lower zoom level when between integer
- * zoom levels. See {@link module:tl/tilegrid/TileGrid~TileGrid#getZForResolution}.
- */
+export interface VectorTileOptions {
+  attributions?: AttributionLike;
+  attributionsCollapsible?: boolean;
+  cacheSize?: number;
+  extent?: Extent;
+  format?: FeatureFormat;
+  overlaps?: boolean;
+  projection?: ProjectionLike;
+  state?: SourceState;
+  tileClass?: typeof VectorTile;
+  maxZoom?: number;
+  minZoom?: number;
+  tileSize?: number | Size;
+  maxResolution?: number;
+  tileGrid?: TileGrid;
+  tileLoadFunction?: TileLoadFunction;
+  tileUrlFunction?: UrlFunction;
+  url?: string;
+  transition?: number;
+  urls?: string[];
+  wrapX?: boolean;
+  zDirection?: number | NearestDirectionFunction;
+}
 
 /**
  * @classdesc
@@ -99,11 +66,16 @@ import {toSize} from '../size';
  * @fires import("./Tile").TileSourceEvent
  * @api
  */
-class VectorTile extends UrlTile {
+class VectorTileSource extends UrlTileSource {
+  private format_: FeatureFormat;
+  private sourceTileCache: TileCache;
+  private overlaps_: boolean;
+  protected tileClass: typeof VectorTile;
+  private tileGrids_: {[key: string]: TileGrid};
   /**
    * @param {!Options} options Vector tile options.
    */
-  constructor(options) {
+  constructor(options: VectorTileOptions) {
     const projection = options.projection || 'EPSG:3857';
 
     const extent = options.extent || extentFromProjection(projection);
@@ -181,8 +153,8 @@ class VectorTile extends UrlTile {
    * @return {Array<import("../Feature").FeatureLike>} Features.
    * @api
    */
-  getFeaturesInExtent(extent) {
-    const features = [];
+  public getFeaturesInExtent(extent: Extent): FeatureLike[] {
+    const features: Feature[] = [];
     const tileCache = this.tileCache;
     if (tileCache.getCount() === 0) {
       return features;
@@ -485,21 +457,21 @@ class VectorTile extends UrlTile {
   }
 }
 
-export default VectorTile;
+export default VectorTileSource;
 
 /**
  * Sets the loader for a tile.
  * @param {import("../VectorTile").default} tile Vector tile.
  * @param {string} url URL.
  */
-export function defaultLoadFunction(tile, url) {
+export function defaultLoadFunction(tile: VectorTile, url: string): void {
   tile.setLoader(
     /**
      * @param {import("../extent").Extent} extent Extent.
      * @param {number} resolution Resolution.
      * @param {import("../proj/Projection").default} projection Projection.
      */
-    function (extent, resolution, projection) {
+    function (extent: Extent, resolution: number, projection: Projection): void {
       loadFeaturesXhr(
         url,
         tile.getFormat(),

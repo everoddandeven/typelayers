@@ -72,7 +72,7 @@ abstract class CanvasLayerRenderer<LayerType extends Layer = Layer> extends Laye
      * @protected
      * @type {number}
      */
-    this.renderedResolution;
+    this.renderedResolution = null;
 
     /**
      * A temporary transform.  The values in this transform should only be used in a
@@ -133,7 +133,7 @@ abstract class CanvasLayerRenderer<LayerType extends Layer = Layer> extends Laye
     }
     pixelContext.clearRect(0, 0, 1, 1);
 
-    let data;
+    let data: Uint8ClampedArray;
     try {
       pixelContext.drawImage(image, col, row, 1, 1, 0, 0, 1, 1);
       data = pixelContext.getImageData(0, 0, 1, 1).data;
@@ -165,7 +165,7 @@ abstract class CanvasLayerRenderer<LayerType extends Layer = Layer> extends Laye
    */
   public useContainer(target: HTMLElement, transform: string, backgroundColor: string): void {
     const layerClassName = this.getLayer().getClassName();
-    let container, context;
+    let container: HTMLElement, context: CanvasRenderingContext2D;
     if (
       target &&
       target.className === layerClassName &&
@@ -188,7 +188,7 @@ abstract class CanvasLayerRenderer<LayerType extends Layer = Layer> extends Laye
       this.context = context;
       this.containerReused = true;
     } else if (this.containerReused) {
-      // Previously reused container cannot be used any more.
+      // Previously reused container cannot be used anymore.
       this.container = null;
       this.context = null;
       this.containerReused = false;

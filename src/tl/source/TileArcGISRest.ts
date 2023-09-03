@@ -2,59 +2,36 @@
  * @module tl/source/TileArcGISRest
  */
 
-import TileImage from './TileImage';
+import TileImageSource from './TileImageSource';
 import {appendParams} from '../uri';
-import {createEmpty} from '../extent';
+import {createEmpty, Extent} from '../extent';
 import {modulo} from '../math';
-import {scale as scaleSize, toSize} from '../size';
-import {hash as tileCoordHash} from '../tilecoord';
+import {scale as scaleSize, Size, toSize} from '../size';
+import {hash as tileCoordHash, TileCoord} from '../tilecoord';
+import {TileLoadFunction} from "../Tile";
+import {ProjectionLike} from "../proj";
+import TileGrid from "../tilegrid/TileGrid";
+import {AttributionLike} from "./Source";
+import {NearestDirectionFunction} from "../array";
+import Projection from "../proj/Projection";
 
-/**
- * @typedef {Object} Options
- * @property {import("./Source").AttributionLike} [attributions] Attributions.
- * @property {number} [cacheSize] Initial tile cache size. Will auto-grow to hold at least the number of tiles in the viewport.
- * @property {null|string} [crossOrigin] The `crossOrigin` attribute for loaded images.  Note that
- * you must provide a `crossOrigin` value if you want to access pixel data with the Canvas renderer.
- * See https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image for more detail.
- * @property {boolean} [interpolate=true] Use interpolated values when resampling.  By default,
- * linear interpolation is used when resampling.  Set to false to use the nearest neighbor instead.
- * @property {Object<string,*>} [params] ArcGIS Rest parameters. This field is optional. Service defaults will be
- * used for any fields not specified. `FORMAT` is `PNG32` by default. `F` is `IMAGE` by
- * default. `TRANSPARENT` is `true` by default.  `BBOX`, `SIZE`, `BBOXSR`,
- * and `IMAGESR` will be set dynamically. Set `LAYERS` to
- * override the default service layer visibility. See
- * https://developers.arcgis.com/rest/services-reference/export-map.htm
- * for further reference.
- * @property {boolean} [hidpi=true] Use the `tl/Map#pixelRatio` value when requesting
- * the image from the remote server.
- * @property {import("../tilegrid/TileGrid").default} [tileGrid] Tile grid. Base this on the resolutions,
- * tilesize and extent supported by the server.
- * If this is not defined, a default grid will be used: if there is a projection
- * extent, the grid will be based on that; if not, a grid based on a global
- * extent with origin at 0,0 will be used.
- * @property {import("../proj").ProjectionLike} [projection] Projection. Default is the view projection.
- * The projection code must contain a numeric end portion separated by :
- * or the entire code must form a valid ArcGIS SpatialReference definition.
- * @property {number} [reprojectionErrorThreshold=0.5] Maximum allowed reprojection error (in pixels).
- * Higher values can increase reprojection performance, but decrease precision.
- * @property {import("../Tile").LoadFunction} [tileLoadFunction] Optional function to load a tile given a URL.
- * The default is
- * ```js
- * function(imageTile, src) {
- *   imageTile.getImage().src = src;
- * };
- * ```
- * @property {string} [url] ArcGIS Rest service URL for a Map Service or Image Service. The
- * url should include /MapServer or /ImageServer.
- * @property {boolean} [wrapX=true] Whether to wrap the world horizontally.
- * @property {number} [transition] Duration of the opacity transition for rendering.  To disable the opacity
- * transition, pass `transition: 0`.
- * @property {Array<string>} [urls] ArcGIS Rest service urls. Use this instead of `url` when the ArcGIS
- * Service supports multiple urls for export requests.
- * @property {number|import("../array").NearestDirectionFunction} [zDirection=0]
- * Choose whether to use tiles with a higher or lower zoom level when between integer
- * zoom levels. See {@link module:tl/tilegrid/TileGrid~TileGrid#getZForResolution}.
- */
+export interface TileArcGISRestOptions {
+  attributions?: AttributionLike;
+  cacheSize?: number;
+  crossOrigin?: null | string;
+  interpolate?: boolean;
+  params?: {[key: string]: any};
+  hidpi?: boolean;
+  tileGrid?: TileGrid;
+  projection?: ProjectionLike;
+  reprojectionErrorThreshold?: number;
+  tileLoadFunction?: TileLoadFunction;
+  url?: string;
+  wrapX?: boolean;
+  transition?: number;
+  urls?: string[];
+  zDirection?: number | NearestDirectionFunction;
+}
 
 /**
  * @classdesc
@@ -65,11 +42,14 @@ import {hash as tileCoordHash} from '../tilecoord';
  * {@link module:tl/source/XYZ~XYZ} data source.
  * @api
  */
-class TileArcGISRest extends TileImage {
+class TileArcGISRest extends TileImageSource {
+  private params_: { [p: string]: any };
+  private hidpi_: boolean;
+  private tmpExtent_: Extent;
   /**
    * @param {Options} [options] Tile ArcGIS Rest options.
    */
-  constructor(options) {
+  constructor(options?: TileArcGISRestOptions) {
     options = options ? options : {};
 
     super({
@@ -113,7 +93,7 @@ class TileArcGISRest extends TileImage {
    * @private
    * @return {string} The key for the current params.
    */
-  getKeyForParams_() {
+  private getKeyForParams_(): string {
     let i = 0;
     const res = [];
     for (const key in this.params_) {
@@ -128,7 +108,7 @@ class TileArcGISRest extends TileImage {
    * @return {Object} Params.
    * @api
    */
-  getParams() {
+  public getParams(): { [p: string]: any } {
     return this.params_;
   }
 
@@ -142,14 +122,14 @@ class TileArcGISRest extends TileImage {
    * @return {string|undefined} Request URL.
    * @private
    */
-  getRequestUrl_(
-    tileCoord,
-    tileSize,
-    tileExtent,
-    pixelRatio,
-    projection,
-    params
-  ) {
+  private getRequestUrl_(
+    tileCoord: TileCoord,
+    tileSize: Size,
+    tileExtent: Extent,
+    pixelRatio: number,
+    projection: Projection,
+    params: { [p: string]: any }
+  ): string | undefined {
     const urls = this.urls;
     if (!urls) {
       return undefined;
@@ -190,7 +170,7 @@ class TileArcGISRest extends TileImage {
    * @param {number} pixelRatio Pixel ratio.
    * @return {number} Tile pixel ratio.
    */
-  getTilePixelRatio(pixelRatio) {
+  public getTilePixelRatio(pixelRatio: number): number {
     return this.hidpi_ ? pixelRatio : 1;
   }
 
@@ -199,7 +179,7 @@ class TileArcGISRest extends TileImage {
    * @param {Object} params Params.
    * @api
    */
-  updateParams(params) {
+  public updateParams(params: { [p: string]: any }): void {
     Object.assign(this.params_, params);
     this.setKey(this.getKeyForParams_());
   }
@@ -211,7 +191,7 @@ class TileArcGISRest extends TileImage {
    * @return {string|undefined} The tile URL
    * @override
    */
-  tileUrlFunction(tileCoord, pixelRatio, projection) {
+  public tileUrlFunction(tileCoord: TileCoord, pixelRatio: number, projection: Projection): string | undefined {
     let tileGrid = this.getTileGrid();
     if (!tileGrid) {
       tileGrid = this.getTileGridForProjection(projection);

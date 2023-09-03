@@ -7,33 +7,21 @@ import {assert} from './asserts';
 import {EventsKey, listen, unlistenByKey} from './events';
 import {Geometry} from "./geom";
 import RenderFeature from "./render/Feature";
+import BaseEvent from "./events/Event";
+import {EventTypes} from "./Observable";
+import {ObjectEventTypes} from "./ObjectEventType";
+import Style, {StyleFunction, StyleLike} from "./style/Style";
 
-/**
- * @typedef {typeof Feature|typeof import("./render/Feature").default} FeatureClass
- */
 
 export type FeatureClass = Feature | typeof RenderFeature;
-
-/**
- * @typedef {Feature|import("./render/Feature").default} FeatureLike
- */
-
 export type FeatureLike = Feature | RenderFeature;
 
-/***
- * @template Return
- * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event").default, Return> &
- *   import("./Observable").OnSignature<import("./ObjectEventType").Types|'change:geometry', import("./Object").ObjectEvent, Return> &
- *   import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|import("./ObjectEventType").Types
- *     |'change:geometry', Return>} FeatureOnSignature
- */
+export type FeatureOnSignature<Return> =
+    import("./Observable").OnSignature<EventTypes, BaseEvent, Return> &
+    import("./Observable").OnSignature<ObjectEventTypes | 'change:geometry', import("./Object").ObjectEvent, Return> &
+    import("./Observable").CombinedOnSignature<EventTypes | ObjectEventTypes | 'change:geometry', Return>;
 
-/***
- * @template Geometry
- * @typedef {Object<string, *> & { geometry?: Geometry }} ObjectWithGeometry
- */
-
-export type ObjectWithGeometry = {[key: string]: any} & { geometry?: Geometry};
+export type ObjectWithGeometry<GeometryType extends Geometry = Geometry> = {[key: string]: any} & { geometry?: GeometryType};
 
 /**
  * @classdesc
@@ -80,7 +68,7 @@ export type ObjectWithGeometry = {[key: string]: any} & { geometry?: Geometry};
  * @api
  * @template {import("./geom/Geometry").default} [Geometry=import("./geom/Geometry").default]
  */
-class Feature extends BaseObject {
+class Feature<GeometryType extends Geometry = Geometry> extends BaseObject {
   /**
    * @param {Geometry|ObjectWithGeometry<Geometry>} [geometryOrProperties]
    *     You may pass a Geometry object directly, or an object literal containing
@@ -94,27 +82,27 @@ class Feature extends BaseObject {
   private styleFunction_?: StyleFunction;
   private geometryChangeKey_?: EventsKey;
 
-  public on;
-  public once;
-  public un;
+  public on?: FeatureOnSignature<EventsKey>;
+  public once?: FeatureOnSignature<EventsKey>;
+  public un?: FeatureOnSignature<void>;
 
-  constructor(geometryOrProperties?: Geometry | ObjectWithGeometry) {
+  constructor(geometryOrProperties?: GeometryType | ObjectWithGeometry<GeometryType>) {
     super();
 
     /***
      * @type {FeatureOnSignature<import("./events").EventsKey>}
      */
-    this.on;
+    this.on = null;
 
     /***
      * @type {FeatureOnSignature<import("./events").EventsKey>}
      */
-    this.once;
+    this.once = null;
 
     /***
      * @type {FeatureOnSignature<void>}
      */
-    this.un;
+    this.un = null;
 
     /**
      * @private
@@ -155,7 +143,7 @@ class Feature extends BaseObject {
           /** @type {?} */ (geometryOrProperties).getSimplifiedGeometry
         ) === 'function'
       ) {
-        const geometry: Geometry = <Geometry>geometryOrProperties;
+        const geometry: GeometryType = <GeometryType>geometryOrProperties;
         this.setGeometry(geometry);
       } else {
         /** @type {Object<string, *>} */
@@ -171,14 +159,14 @@ class Feature extends BaseObject {
    * @return {Feature<Geometry>} The clone.
    * @api
    */
-  public clone(): Feature {
+  public clone(): Feature<GeometryType> {
     const clone = /** @type {Feature<Geometry>} */ (
-      new Feature(this.hasProperties() ? this.getProperties() : null)
+      new Feature<GeometryType>(this.hasProperties() ? this.getProperties() : null)
     );
     clone.setGeometryName(this.getGeometryName());
     const geometry = this.getGeometry();
     if (geometry) {
-      clone.setGeometry(/** @type {Geometry} */ (geometry.clone()));
+      clone.setGeometry(/** @type {Geometry} */ (<GeometryType>geometry.clone()));
     }
     const style = this.getStyle();
     if (style) {
@@ -195,7 +183,7 @@ class Feature extends BaseObject {
    * @api
    * @observable
    */
-  public getGeometry(): Geometry | null {
+  public getGeometry(): GeometryType | null {
     return /** @type {Geometry|undefined} */ (this.get(this.geometryName_));
   }
 
@@ -276,7 +264,7 @@ class Feature extends BaseObject {
    * @api
    * @observable
    */
-  public setGeometry(geometry?: Geometry): void {
+  public setGeometry(geometry?: GeometryType): void {
     this.set(this.geometryName_, geometry);
   }
 
@@ -284,10 +272,9 @@ class Feature extends BaseObject {
    * Set the style for the feature to override the layer style.  This can be a
    * single style object, an array of styles, or a function that takes a
    * resolution and returns an array of styles. To unset the feature style, call
-   * `setStyle()` without arguments or a falsey value.
+   * `setStyle()` without arguments or a false y value.
    * @param {import("./style/Style").StyleLike} [style] Style for this feature.
    * @api
-   * @fires module:tl/events/Event~BaseEvent#event:change
    */
   public setStyle(style: StyleLike): void {
     this.style_ = style;
@@ -302,7 +289,6 @@ class Feature extends BaseObject {
    * {@link module:tl/source/Vector~VectorSource#getFeatureById} method.
    * @param {number|string|undefined} id The feature id.
    * @api
-   * @fires module:tl/events/Event~BaseEvent#event:change
    */
   public setId(id?: number | string | null): void {
     this.id_ = id;
@@ -332,14 +318,14 @@ class Feature extends BaseObject {
  *     A feature style function, a single style, or an array of styles.
  * @return {import("./style/Style").StyleFunction} A style function.
  */
-export function createStyleFunction(obj): StyleFuntion {
+export function createStyleFunction(obj: StyleFunction | Style[] | Style): StyleFunction {
   if (typeof obj === 'function') {
     return obj;
   }
   /**
    * @type {Array<import("./style/Style").default>}
    */
-  let styles;
+  let styles: Style[];
   if (Array.isArray(obj)) {
     styles = obj;
   } else {

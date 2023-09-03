@@ -262,7 +262,7 @@ class BaseVectorLayer<VectorSourceType extends VectorSource | VectorTile = Vecto
     /**
      * @type {import("../style/Style").StyleLike|null}
      */
-    let styleLike;
+    let styleLike: StyleLike | null;
 
     if (style === undefined) {
       styleLike = createDefaultStyle;
@@ -278,7 +278,7 @@ class BaseVectorLayer<VectorSourceType extends VectorSource | VectorTile = Vecto
       /**
        * @type {Array<Style>}
        */
-      const styles = new Array(len);
+      const styles: Style[] = new Array(len);
 
       for (let i = 0; i < len; ++i) {
         const s = style[i];

@@ -2,7 +2,7 @@
  * @module tl/layer/WebGLTile
  */
 import BaseTileLayer from './BaseTile';
-import LayerProperty from '../layer/Property';
+import LayerProperty from './Property';
 import WebGLTileLayerRenderer, {
   Attributes,
   Uniforms,
@@ -12,85 +12,63 @@ import {
   ValueTypes,
   expressionToGlsl,
   getStringNumberEquivalent,
-  uniformNameForVariable,
+  uniformNameForVariable, ExpressionValue, ParsingContext,
 } from '../style/expressions';
+import DataTileSource from "../source/DataTile";
+import TileImageSource from "../source/TileImageSource";
+import {Extent} from "../extent";
+import {UniformValue} from "../webgl/Helper";
+import PaletteTexture from "../webgl/PaletteTexture";
+import {LiteralStyle} from "../style/literal";
 
 /**
- * @typedef {import("../source/DataTile").default|import("../source/TileImage").default} SourceType
+ * @typedef {import("../source/DataTile").default|import("../source/TileImageSource").default} SourceType
  */
 
-/**
- * @typedef {Object} Style
- * Translates tile data to rendered pixels.
- *
- * @property {Object<string, (string|number)>} [variables] Style variables.  Each variable must hold a number or string.  These
- * variables can be used in the `color`, `brightness`, `contrast`, `exposure`, `saturation` and `gamma`
- * {@link import("../style/expressions").ExpressionValue expressions}, using the `['var', 'varName']` operator.
- * To update style variables, use the {@link import("./WebGLTile").default#updateStyleVariables} method.
- * @property {import("../style/expressions").ExpressionValue} [color] An expression applied to color values.
- * @property {import("../style/expressions").ExpressionValue} [brightness=0] Value used to decrease or increase
- * the layer brightness.  Values range from -1 to 1.
- * @property {import("../style/expressions").ExpressionValue} [contrast=0] Value used to decrease or increase
- * the layer contrast.  Values range from -1 to 1.
- * @property {import("../style/expressions").ExpressionValue} [exposure=0] Value used to decrease or increase
- * the layer exposure.  Values range from -1 to 1.
- * @property {import("../style/expressions").ExpressionValue} [saturation=0] Value used to decrease or increase
- * the layer saturation.  Values range from -1 to 1.
- * @property {import("../style/expressions").ExpressionValue} [gamma=1] Apply a gamma correction to the layer.
- * Values range from 0 to infinity.
- */
+export type WebGLTileLayerSourceType = DataTileSource | TileImageSource;
 
-/**
- * @typedef {Object} Options
- * @property {Style} [style] Style to apply to the layer.
- * @property {string} [className='tl-layer'] A CSS class name to set to the layer element.
- * @property {number} [opacity=1] Opacity (0, 1).
- * @property {boolean} [visible=true] Visibility.
- * @property {import("../extent").Extent} [extent] The bounding extent for layer rendering.  The layer will not be
- * rendered outside of this extent.
- * @property {number} [zIndex] The z-index for layer rendering.  At rendering time, the layers
- * will be ordered, first by Z-index and then by position. When `undefined`, a `zIndex` of 0 is assumed
- * for layers that are added to the map's `layers` collection, or `Infinity` when the layer's `setMap()`
- * method was used.
- * @property {number} [minResolution] The minimum resolution (inclusive) at which this layer will be
- * visible.
- * @property {number} [maxResolution] The maximum resolution (exclusive) below which this layer will
- * be visible.
- * @property {number} [minZoom] The minimum view zoom level (exclusive) above which this layer will be
- * visible.
- * @property {number} [maxZoom] The maximum view zoom level (inclusive) at which this layer will
- * be visible.
- * @property {number} [preload=0] Preload. Load low-resolution tiles up to `preload` levels. `0`
- * means no preloading.
- * @property {SourceType} [source] Source for this layer.
- * @property {Array<SourceType>|function(import("../extent").Extent, number):Array<SourceType>} [sources] Array
- * of sources for this layer. Takes precedence over `source`. Can either be an array of sources, or a function that
- * expects an extent and a resolution (in view projection units per pixel) and returns an array of sources. See
- * {@link module:tl/source.sourcesFromTileGrid} for a helper function to generate sources that are organized in a
- * pyramid following the same pattern as a tile grid. **Note:** All sources must have the same band count and content.
- * @property {import("../Map").default} [map] Sets the layer as overlay on a map. The map will not manage
- * this layer in its layers collection, and the layer will be rendered on top. This is useful for
- * temporary layers. The standard way to add a layer to a map and have it managed by the map is to
- * use {@link module:tl/Map~Map#addLayer}.
- * @property {boolean} [useInterimTilesOnError=true] Use interim tiles on error.
- * @property {number} [cacheSize=512] The internal texture cache size.  This needs to be large enough to render
- * two zoom levels worth of tiles.
- */
+export interface WebGLTileLayerStyle extends LiteralStyle {
+  variables?: { [key: string]: string | number };
+  color?: ExpressionValue;
+  brightness?: ExpressionValue;
+  contrast?: ExpressionValue;
+  exposure?: ExpressionValue;
+  saturation?: ExpressionValue;
+  gamma?: ExpressionValue;
+}
 
-/**
- * @typedef {Object} ParsedStyle
- * @property {string} vertexShader The vertex shader.
- * @property {string} fragmentShader The fragment shader.
- * @property {Object<string,import("../webgl/Helper").UniformValue>} uniforms Uniform definitions.
- * @property {Array<import("../webgl/PaletteTexture").default>} paletteTextures Palette textures.
- */
+export interface WebGLTileLayerOptions {
+  style?: WebGLTileLayerStyle;
+  className?: string;
+  opacity?: number;
+  visible?: boolean;
+  extent?: import("../extent").Extent;
+  zIndex?: number;
+  minResolution?: number;
+  maxResolution?: number;
+  minZoom?: number;
+  maxZoom?: number;
+  preload?: number;
+  source?: WebGLTileLayerSourceType;
+  sources?: WebGLTileLayerSourceType[] | ((extent: Extent, resolution: number) => WebGLTileLayerSourceType[]);
+  map?: import("../Map").default;
+  useInterimTilesOnError?: boolean;
+  cacheSize?: number;
+}
+
+export interface ParsedStyle {
+  vertexShader: string;
+  fragmentShader: string;
+  uniforms: {[key: string]: UniformValue};
+  paletteTextures: PaletteTexture[];
+}
 
 /**
  * @param {Style} style The layer style.
  * @param {number} [bandCount] The number of bands.
  * @return {ParsedStyle} Shaders and uniforms generated from the style.
  */
-function parseStyle(style, bandCount) {
+function parseStyle(style: WebGLTileLayerStyle, bandCount?: number): ParsedStyle {
   const vertexShader = `
     attribute vec2 ${Attributes.TEXTURE_COORD};
     uniform mat4 ${Uniforms.TILE_TRANSFORM};
@@ -117,7 +95,7 @@ function parseStyle(style, bandCount) {
   /**
    * @type {import("../style/expressions").ParsingContext}
    */
-  const context = {
+  const context: ParsingContext = {
     inFragmentShader: true,
     variables: [],
     attributes: [],
@@ -300,10 +278,16 @@ function parseStyle(style, bandCount) {
  * @api
  */
 class WebGLTileLayer extends BaseTileLayer {
+  private sources_: WebGLTileLayerSourceType[] | ((extent: Extent, resolution: number) => WebGLTileLayerSourceType[]);
+  private renderedSource_: WebGLTileLayerSourceType;
+  private renderedResolution_: number;
+  private style_: WebGLTileLayerStyle;
+  private cacheSize_: number;
+  private styleVariables_: { [p: string]: string | number };
   /**
    * @param {Options} options Tile layer options.
    */
-  constructor(options) {
+  constructor(options: WebGLTileLayerOptions) {
     options = options ? Object.assign({}, options) : {};
 
     const style = options.style || {};
@@ -359,7 +343,7 @@ class WebGLTileLayer extends BaseTileLayer {
    * @param {number} resolution Resolution.
    * @return {Array<SourceType>} Sources.
    */
-  getSources(extent, resolution) {
+  public getSources(extent: Extent, resolution: number): WebGLTileLayerSourceType[] {
     const source = this.getSource();
     return this.sources_
       ? typeof this.sources_ === 'function'
@@ -388,7 +372,7 @@ class WebGLTileLayer extends BaseTileLayer {
   /**
    * @private
    */
-  handleSourceUpdate_() {
+  private handleSourceUpdate_(): void {
     if (this.hasRenderer()) {
       this.getRenderer().clearCache();
     }
@@ -401,7 +385,7 @@ class WebGLTileLayer extends BaseTileLayer {
    * @private
    * @return {number} The number of source bands.
    */
-  getSourceBandCount_() {
+  private getSourceBandCount_(): number {
     const max = Number.MAX_SAFE_INTEGER;
     const sources = this.getSources([-max, -max, max, max], max);
     return sources && sources.length && 'bandCount' in sources[0]
@@ -409,7 +393,7 @@ class WebGLTileLayer extends BaseTileLayer {
       : 4;
   }
 
-  createRenderer() {
+  public createRenderer(): WebGLTileLayerRenderer {
     const parsedStyle = parseStyle(this.style_, this.getSourceBandCount_());
 
     return new WebGLTileLayerRenderer(this, {
@@ -508,7 +492,7 @@ class WebGLTileLayer extends BaseTileLayer {
    * @param {Object<string, number>} variables Variables to update.
    * @api
    */
-  updateStyleVariables(variables) {
+  public updateStyleVariables(variables: {[key: string]: number}): void {
     Object.assign(this.styleVariables_, variables);
     this.changed();
   }
@@ -519,6 +503,6 @@ class WebGLTileLayer extends BaseTileLayer {
  * @function
  * @api
  */
-WebGLTileLayer.prototype.dispose;
+//WebGLTileLayer.prototype.dispose;
 
 export default WebGLTileLayer;

@@ -8,7 +8,7 @@ import {Extent} from "../extent/Extent";
 import {Coordinate, Coordinates} from "../coordinate";
 import {Size} from "../size";
 
-export interface WMTSOptions {
+export interface WMTSTileGridOptions {
   extent?: Extent;
   origin?: Coordinate;
   origins?: Coordinates;
@@ -31,7 +31,7 @@ class WMTSTileGrid extends TileGrid {
 
   private matrixIds_?: string[];
 
-  constructor(options: WMTSOptions) {
+  constructor(options: WMTSTileGridOptions) {
     super({
       extent: options.extent,
       origin: options.origin,

@@ -75,20 +75,7 @@ export function toArray(image: ImageLike): Uint8ClampedArray {
  */
 const defaultSize: Size = [256, 256];
 
-/**
- * @typedef {Object} Options
- * @property {import("./tilecoord").TileCoord} tileCoord Tile coordinate.
- * @property {function(): Promise<Data>} loader Data loader.  For loaders that generate images,
- * the promise should not resolve until the image is loaded.
- * @property {number} [transition=250] A duration for tile opacity
- * transitions in milliseconds. A duration of 0 disables the opacity transition.
- * @property {boolean} [interpolate=false] Use interpolated values when resampling.  By default,
- * the nearest neighbor is used when resampling.
- * @property {import('./size').Size} [size=[256, 256]] Tile size.
- * @api
- */
-
-export interface TileOptions
+export interface DataTileOptions
 {
   tileCoord: TileCoord,
   loader: () => Promise<Data>;
@@ -98,16 +85,12 @@ export interface TileOptions
 }
 
 class DataTile extends Tile {
-  /**
-   * @param {Options} options Tile options.
-   */
-
   private loader_: () => Promise<Data>;
   private data_: Data;
   private error_: Error;
   private size_: Size;
 
-  constructor(options: TileOptions) {
+  constructor(options: DataTileOptions) {
     const state = TileState.IDLE;
 
     super(options.tileCoord, state, {

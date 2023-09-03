@@ -2,7 +2,7 @@
  * @module tl/source/BingMaps
  */
 
-import TileImage from './TileImage';
+import TileImageSource from './TileImageSource';
 import {applyTransform, Extent, intersects} from '../extent';
 import {createFromTileUrlFunctions} from '../tileurlfunction';
 import {createOrUpdate, TileCoord} from '../tilecoord';
@@ -100,7 +100,7 @@ export interface CoverageArea {
  * Layer source for Bing Maps tile data.
  * @api
  */
-class BingMaps extends TileImage {
+class BingMaps extends TileImageSource {
   private hidpi_: boolean;
   private culture_: string;
   private maxZoom_: number;

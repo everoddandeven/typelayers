@@ -1,36 +1,18 @@
 /**
  * @module tl/interaction/Pointer
  */
-import Interaction from './Interaction';
+import Interaction, {InteractionOptions} from './Interaction';
 import MapBrowserEventType from '../MapBrowserEventType';
+import {MapBrowserEvent} from "../index";
 
-/**
- * @typedef {Object} Options
- * @property {function(import("../MapBrowserEvent").default):boolean} [handleDownEvent]
- * Function handling "down" events. If the function returns `true` then a drag
- * sequence is started.
- * @property {function(import("../MapBrowserEvent").default):void} [handleDragEvent]
- * Function handling "drag" events. This function is called on "move" events
- * during a drag sequence.
- * @property {function(import("../MapBrowserEvent").default):boolean} [handleEvent]
- * Method called by the map to notify the interaction that a browser event was
- * dispatched to the map. The function may return `false` to prevent the
- * propagation of the event to other interactions in the map's interactions
- * chain.
- * @property {function(import("../MapBrowserEvent").default):void} [handleMoveEvent]
- * Function handling "move" events. This function is called on "move" events.
- * This functions is also called during a drag sequence, so during a drag
- * sequence both the `handleDragEvent` function and this function are called.
- * If `handleDownEvent` is defined and it returns true this function will not
- * be called during a drag sequence.
- * @property {function(import("../MapBrowserEvent").default):boolean} [handleUpEvent]
- *  Function handling "up" events. If the function returns `false` then the
- * current drag sequence is stopped.
- * @property {function(boolean):boolean} [stopDown]
- * Should the down event be propagated to other interactions, or should be
- * stopped?
- */
-
+export interface PointerInteractionOptions {
+  handleDownEvent?: (event: MapBrowserEvent) => boolean;
+  handleDragEvent?: (event: MapBrowserEvent) => void;
+  handleEvent?: (event: MapBrowserEvent) => boolean;
+  handleMoveEvent?: (event: MapBrowserEvent) => void;
+  handleUpEvent?: (event: MapBrowserEvent) => boolean;
+  stopDown?: (shouldPropagate: boolean) => boolean;
+}
 /**
  * @classdesc
  * Base class that calls user-defined functions on `down`, `move` and `up`
@@ -42,15 +24,17 @@ import MapBrowserEventType from '../MapBrowserEventType';
  * user function is called and returns `false`.
  * @api
  */
-class PointerInteraction extends Interaction {
+abstract class PointerInteraction extends Interaction {
+  protected handlingDownUpSequence: boolean;
+  protected targetPointers: PointerEvent[];
   /**
    * @param {Options} [options] Options.
    */
-  constructor(options) {
+  protected constructor(options?: PointerInteractionOptions) {
     options = options ? options : {};
 
     super(
-      /** @type {import("./Interaction").InteractionOptions} */ (options)
+      /** @type {import("./Interaction").InteractionOptions} */ (<InteractionOptions>options)
     );
 
     if (options.handleDownEvent) {
@@ -92,7 +76,7 @@ class PointerInteraction extends Interaction {
    * @return {number} The number of pointers.
    * @api
    */
-  getPointerCount() {
+  public getPointerCount(): number {
     return this.targetPointers.length;
   }
 
@@ -102,7 +86,7 @@ class PointerInteraction extends Interaction {
    * @return {boolean} If the event was consumed.
    * @protected
    */
-  handleDownEvent(mapBrowserEvent) {
+  protected handleDownEvent(mapBrowserEvent: MapBrowserEvent): boolean {
     return false;
   }
 
@@ -111,7 +95,7 @@ class PointerInteraction extends Interaction {
    * @param {import("../MapBrowserEvent").default} mapBrowserEvent Event.
    * @protected
    */
-  handleDragEvent(mapBrowserEvent) {}
+  protected abstract handleDragEvent(mapBrowserEvent: MapBrowserEvent): void;
 
   /**
    * Handles the {@link module:tl/MapBrowserEvent~MapBrowserEvent map browser event} and may call into
@@ -121,7 +105,7 @@ class PointerInteraction extends Interaction {
    * @return {boolean} `false` to stop event propagation.
    * @api
    */
-  handleEvent(mapBrowserEvent) {
+  public handleEvent(mapBrowserEvent: MapBrowserEvent): boolean {
     if (!mapBrowserEvent.originalEvent) {
       return true;
     }
@@ -155,7 +139,7 @@ class PointerInteraction extends Interaction {
    * @param {import("../MapBrowserEvent").default} mapBrowserEvent Event.
    * @protected
    */
-  handleMoveEvent(mapBrowserEvent) {}
+  protected abstract handleMoveEvent(mapBrowserEvent: MapBrowserEvent): void;
 
   /**
    * Handle pointer up events.
@@ -163,7 +147,7 @@ class PointerInteraction extends Interaction {
    * @return {boolean} If the event was consumed.
    * @protected
    */
-  handleUpEvent(mapBrowserEvent) {
+  protected handleUpEvent(mapBrowserEvent: MapBrowserEvent): boolean {
     return false;
   }
 
@@ -173,7 +157,7 @@ class PointerInteraction extends Interaction {
    * @param {boolean} handled Was the event handled by the interaction?
    * @return {boolean} Should the `down` event be stopped?
    */
-  stopDown(handled) {
+  public stopDown(handled: boolean): boolean {
     return handled;
   }
 
@@ -181,7 +165,7 @@ class PointerInteraction extends Interaction {
    * @param {import("../MapBrowserEvent").default} mapBrowserEvent Event.
    * @private
    */
-  updateTrackedPointers_(mapBrowserEvent) {
+  private updateTrackedPointers_(mapBrowserEvent: MapBrowserEvent): void {
     if (mapBrowserEvent.activePointers) {
       this.targetPointers = mapBrowserEvent.activePointers;
     }
@@ -192,7 +176,7 @@ class PointerInteraction extends Interaction {
  * @param {Array<PointerEvent>} pointerEvents List of events.
  * @return {{clientX: number, clientY: number}} Centroid pixel.
  */
-export function centroid(pointerEvents) {
+export function centroid(pointerEvents: PointerEvent[]): {clientX: number, clientY: number} {
   const length = pointerEvents.length;
   let clientX = 0;
   let clientY = 0;

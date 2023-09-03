@@ -3,18 +3,21 @@
  */
 import Layer from './Layer';
 import ImageSource from "../source/Image";
+import LayerRenderer from "../renderer/Layer";
+import {Extent} from "../extent";
+import Map from "../Map";
 
-export interface BaseImageLayerOptions<ImageSourceType = ImageSource> {
+export interface BaseImageLayerOptions<ImageSourceType extends ImageSource = ImageSource> {
   className?: string;
   opacity?: number;
   visible?: boolean;
-  extent?: import("../extent").Extent;
+  extent?: Extent;
   zIndex?: number;
   minResolution?: number;
   maxResolution?: number;
   minZoom?: number;
   maxZoom?: number;
-  map?: import("../Map").default;
+  map?: Map;
   source?: ImageSourceType;
   properties?: {[key: string]: any};
 }
@@ -32,11 +35,11 @@ export interface BaseImageLayerOptions<ImageSourceType = ImageSource> {
  * @extends {Layer<ImageSourceType, RendererType>}
  * @api
  */
-class BaseImageLayer extends Layer {
+class BaseImageLayer<ImageSourceType extends ImageSource = ImageSource, RendererType extends LayerRenderer = LayerRenderer> extends Layer<ImageSourceType, RendererType> {
   /**
    * @param {Options<ImageSourceType>} [options] Layer options.
    */
-  constructor(options?: BaseImageLayerOptions) {
+  constructor(options?: BaseImageLayerOptions<ImageSourceType>) {
     options = options ? options : {};
     super(options);
   }

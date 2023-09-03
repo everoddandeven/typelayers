@@ -30,7 +30,7 @@ export type TileFunctionType = (a: number, b: number, c: number, d: number) => I
 /**
  * @classdesc
  * Class encapsulating single reprojected tile.
- * See {@link module:tl/source/TileImage~TileImage}.
+ * See {@link module:tl/source/TileImage~TileImageSource}.
  *
  */
 class ReprojTile extends Tile {

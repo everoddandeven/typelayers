@@ -2,7 +2,7 @@
  * @module tl/source/TileWMS
  */
 
-import TileImage from './TileImage';
+import TileImageSource from './TileImageSource';
 import {DEFAULT_VERSION} from './wms';
 import {appendParams} from '../uri';
 import {assert} from '../asserts';
@@ -77,7 +77,7 @@ import {hash as tileCoordHash} from '../tilecoord';
  * Layer source for tile data from WMS servers.
  * @api
  */
-class TileWMS extends TileImage {
+class TileWMS extends TileImageSource {
   /**
    * @param {Options} [options] Tile WMS options.
    */

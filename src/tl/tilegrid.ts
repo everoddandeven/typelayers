@@ -3,7 +3,7 @@
  */
 import TileGrid from './tilegrid/TileGrid';
 import {DEFAULT_MAX_ZOOM, DEFAULT_TILE_SIZE} from './tilegrid/common';
-import {METERS_PER_UNIT, get as getProjection} from './proj';
+import {METERS_PER_UNIT, get as getProjection, ProjectionLike} from './proj';
 import {
   containsCoordinate, Corner,
   createOrUpdate,
@@ -168,7 +168,7 @@ export function createForProjection(
  * @param {import("./proj").ProjectionLike} projection Projection.
  * @return {import("./extent").Extent} Extent.
  */
-export function extentFromProjection(projection: Projection): Extent {
+export function extentFromProjection(projection: ProjectionLike): Extent {
   projection = getProjection(projection);
   let extent = projection.getExtent();
   if (!extent) {

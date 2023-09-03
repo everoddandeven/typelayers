@@ -25,14 +25,14 @@ import ImageLayer from "../../layer/Image";
 import {FrameState} from "../../Map";
 import {Pixel} from "../../pixel";
 import { FeatureLike } from '../../Feature';
-import { Coordinate } from '../../coordinate';
+import {Coordinate} from '../../coordinate';
 
 /**
  * @classdesc
  * Canvas renderer for image layers.
  * @api
  */
-class CanvasImageLayerRenderer extends CanvasLayerRenderer<any> {
+class CanvasImageLayerRenderer extends CanvasLayerRenderer<ImageLayer> {
 
   /**
    * @param {import("../../layer/Image").default} imageLayer Image layer.
@@ -40,7 +40,7 @@ class CanvasImageLayerRenderer extends CanvasLayerRenderer<any> {
 
   protected image_: ImageBase;
 
-  constructor(imageLayer: ImageLayer<any>) {
+  constructor(imageLayer: ImageLayer) {
     super(imageLayer);
 
     /**
@@ -119,9 +119,9 @@ class CanvasImageLayerRenderer extends CanvasLayerRenderer<any> {
     }
 
     const layer = this.getLayer();
-    const coordinate = applyTransform(
+    const coordinate = <Coordinate>applyTransform(
       frameState.pixelToCoordinateTransform,
-      pixel.slice()
+      <Pixel>pixel.slice()
     );
 
     const layerExtent = layer.getExtent();
@@ -248,7 +248,7 @@ class CanvasImageLayerRenderer extends CanvasLayerRenderer<any> {
       const dx = transform[4];
       const dy = transform[5];
       const opacity = layerState.opacity;
-      let previousAlpha;
+      let previousAlpha: number;
       if (opacity !== 1) {
         previousAlpha = context.globalAlpha;
         context.globalAlpha = opacity;

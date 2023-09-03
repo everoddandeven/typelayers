@@ -3,6 +3,11 @@
  */
 
 import {fromUserExtent, fromUserResolution, toUserExtent} from './proj';
+import {Extent} from "./extent/Extent";
+import TileGrid from "./tilegrid/TileGrid";
+import {LoadingStrategy} from "./source/Vector";
+import {TileCoord} from "./tilecoord";
+import Projection from "./proj/Projection";
 
 /**
  * Strategy function for loading all features with a single request.
@@ -11,7 +16,7 @@ import {fromUserExtent, fromUserResolution, toUserExtent} from './proj';
  * @return {Array<import("./extent").Extent>} Extents.
  * @api
  */
-export function all(extent, resolution) {
+export function all(extent: Extent, resolution: number): Extent[] {
   return [[-Infinity, -Infinity, Infinity, Infinity]];
 }
 
@@ -23,7 +28,7 @@ export function all(extent, resolution) {
  * @return {Array<import("./extent").Extent>} Extents.
  * @api
  */
-export function bbox(extent, resolution) {
+export function bbox(extent: Extent, resolution: number): Extent[] {
   return [extent];
 }
 
@@ -33,7 +38,7 @@ export function bbox(extent, resolution) {
  * @return {function(import("./extent").Extent, number, import("./proj").Projection): Array<import("./extent").Extent>} Loading strategy.
  * @api
  */
-export function tile(tileGrid) {
+export function tile(tileGrid: TileGrid): LoadingStrategy {
   return (
     /**
      * @param {import("./extent").Extent} extent Extent.
@@ -41,7 +46,7 @@ export function tile(tileGrid) {
      * @param {import("./proj").Projection} projection Projection.
      * @return {Array<import("./extent").Extent>} Extents.
      */
-    function (extent, resolution, projection) {
+    function (extent: Extent, resolution: number, projection: Projection): Extent[] {
       const z = tileGrid.getZForResolution(
         fromUserResolution(resolution, projection)
       );
@@ -50,9 +55,9 @@ export function tile(tileGrid) {
         z
       );
       /** @type {Array<import("./extent").Extent>} */
-      const extents = [];
+      const extents: Extent[] = [];
       /** @type {import("./tilecoord").TileCoord} */
-      const tileCoord = [z, 0, 0];
+      const tileCoord: TileCoord = [z, 0, 0];
       for (
         tileCoord[1] = tileRange.minX;
         tileCoord[1] <= tileRange.maxX;

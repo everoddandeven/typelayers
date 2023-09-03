@@ -1,8 +1,10 @@
 /**
  * @module tl/layer/Image
  */
-import BaseImageLayer from './BaseImage';
+import BaseImageLayer, {BaseImageLayerOptions} from './BaseImage';
 import CanvasImageLayerRenderer from '../renderer/canvas/ImageLayer';
+import ImageSource from "../source/Image";
+import {Pixel} from "../pixel";
 
 /**
  * @classdesc
@@ -16,15 +18,15 @@ import CanvasImageLayerRenderer from '../renderer/canvas/ImageLayer';
  * @extends {BaseImageLayer<ImageSourceType, CanvasImageLayerRenderer>}
  * @api
  */
-class ImageLayer extends BaseImageLayer {
+class ImageLayer<ImageSourceType extends ImageSource = ImageSource> extends BaseImageLayer<ImageSourceType, CanvasImageLayerRenderer> {
   /**
    * @param {import("./BaseImage").Options<ImageSourceType>} [options] Layer options.
    */
-  constructor(options) {
+  constructor(options?: BaseImageLayerOptions<ImageSourceType>) {
     super(options);
   }
 
-  createRenderer() {
+  public createRenderer(): CanvasImageLayerRenderer {
     return new CanvasImageLayerRenderer(this);
   }
 
@@ -43,7 +45,7 @@ class ImageLayer extends BaseImageLayer {
    * @return {Uint8ClampedArray|Uint8Array|Float32Array|DataView|null} Pixel data.
    * @api
    */
-  getData(pixel) {
+  public getData(pixel: Pixel): Uint8ClampedArray | Uint8Array | Float32Array | DataView | null {
     return super.getData(pixel);
   }
 }

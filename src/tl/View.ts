@@ -51,6 +51,7 @@ import ObjectEventType from "./ObjectEventType";
 import {CombinedOnSignature, EventTypes, OnSignature} from "./Observable";
 import BaseEvent from "./events/Event";
 import {EventsKey} from "./events";
+import {Pixel} from "./pixel";
 
 interface Animation {
   sourceCenter?: Coordinate;
@@ -538,7 +539,7 @@ class View extends BaseObject {
   /**
    * @param {...(AnimationOptions|function(boolean): void)} var_args Animation options.
    */
-  protected animateInternal(var_args: any): void {
+  public animateInternal(var_args: any): void {
     let animationCount = arguments.length;
     let callback;
     if (
@@ -878,11 +879,12 @@ class View extends BaseObject {
    * Get the view center without transforming to user projection.
    * @return {import("./coordinate").Coordinate|undefined} The center of the view.
    */
-  protected getCenterInternal(): Coordinate | undefined {
+  public getCenterInternal(): Coordinate | undefined {
     return /** @type {import("./coordinate").Coordinate|undefined} */ (
       this.get(ViewProperty.CENTER)
     );
   }
+
 
   /**
    * @return {Constraints} Constraints.
@@ -1145,7 +1147,7 @@ class View extends BaseObject {
   /**
    * @return {State} View state.
    */
-  getState() {
+  public getState(): ViewState {
     const projection = this.getProjection();
     const resolution = this.getResolution();
     const rotation = this.getRotation();
@@ -2065,7 +2067,7 @@ export function isNoopAnimation(animation: Animation): boolean {
  * @param {number} rotation Rotation.
  * @return {import("./coordinate").Coordinate} Shifted center.
  */
-function calculateCenterOn(coordinate, size, position, resolution, rotation) {
+function calculateCenterOn(coordinate: Coordinate, size: Size, position: Pixel, resolution: number, rotation: number): Coordinate {
   // calculate rotated position
   const cosAngle = Math.cos(-rotation);
   let sinAngle = Math.sin(-rotation);

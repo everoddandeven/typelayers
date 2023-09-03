@@ -1,8 +1,9 @@
 /**
  * @module tl/layer/Vector
  */
-import BaseVectorLayer from './BaseVector';
+import BaseVectorLayer, {BaseVectorLayerOptions} from './BaseVector';
 import CanvasVectorLayerRenderer from '../renderer/canvas/VectorLayer';
+import VectorSource from "../source/Vector";
 
 /**
  * @classdesc
@@ -19,15 +20,15 @@ import CanvasVectorLayerRenderer from '../renderer/canvas/VectorLayer';
  * @extends {BaseVectorLayer<VectorSourceType, CanvasVectorLayerRenderer>}
  * @api
  */
-class VectorLayer extends BaseVectorLayer {
+class VectorLayer<VectorSourceType extends VectorSource = VectorSource> extends BaseVectorLayer<VectorSourceType, CanvasVectorLayerRenderer> {
   /**
    * @param {import("./BaseVector").Options<VectorSourceType>} [options] Options.
    */
-  constructor(options) {
+  constructor(options?: BaseVectorLayerOptions<VectorSourceType>) {
     super(options);
   }
 
-  createRenderer() {
+  public createRenderer(): CanvasVectorLayerRenderer {
     return new CanvasVectorLayerRenderer(this);
   }
 }

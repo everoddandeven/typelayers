@@ -5,7 +5,7 @@ import {DEFAULT_TILE_SIZE} from '../tilegrid/common';
 
 import ImageTile from '../ImageTile';
 import TileGrid from '../tilegrid/TileGrid';
-import TileImage from './TileImage';
+import TileImageSource from './TileImageSource';
 import TileState from '../TileState';
 import {assert} from '../asserts';
 import {createCanvasContext2D} from '../dom';
@@ -119,7 +119,7 @@ export class CustomTile extends ImageTile {
  * Imaging Protocol are supported).
  * @api
  */
-class Zoomify extends TileImage {
+class Zoomify extends TileImageSource {
   /**
    * @param {Options} options Options.
    */

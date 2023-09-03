@@ -41,7 +41,7 @@ export type BaseLayerOnSignature<Return> =
     OnSignature<BaseLayerObjectEventTypes, ObjectEvent, Return> &
     CombinedOnSignature<EventTypes, Return>;
 
-export interface LayerOptions
+export interface BaseLayerOptions
 {
   className?: string,
   opacity?: number,
@@ -55,30 +55,6 @@ export interface LayerOptions
   background?: BackgroundColor,
   properties?: {[key: string]: any}
 }
-
-/**
- * @typedef {Object} Options
- * @property {string} [className='tl-layer'] A CSS class name to set to the layer element.
- * @property {number} [opacity=1] Opacity (0, 1).
- * @property {boolean} [visible=true] Visibility.
- * @property {import("../extent").Extent} [extent] The bounding extent for layer rendering.  The layer will not be
- * rendered outside of this extent.
- * @property {number} [zIndex] The z-index for layer rendering.  At rendering time, the layers
- * will be ordered, first by Z-index and then by position. When `undefined`, a `zIndex` of 0 is assumed
- * for layers that are added to the map's `layers` collection, or `Infinity` when the layer's `setMap()`
- * method was used.
- * @property {number} [minResolution] The minimum resolution (inclusive) at which this layer will be
- * visible.
- * @property {number} [maxResolution] The maximum resolution (exclusive) below which this layer will
- * be visible.
- * @property {number} [minZoom] The minimum view zoom level (exclusive) above which this layer will be
- * visible.
- * @property {number} [maxZoom] The maximum view zoom level (inclusive) at which this layer will
- * be visible.
- * @property {BackgroundColor} [background] Background color for the layer. If not specified, no background
- * will be rendered.
- * @property {Object<string, *>} [properties] Arbitrary observable properties. Can be accessed with `#get()` and `#set()`.
- */
 
 /**
  * @classdesc
@@ -103,7 +79,7 @@ export default abstract class BaseLayer extends BaseObject {
   public once: BaseLayerOnSignature<EventsKey>;
   public un: BaseLayerOnSignature<void>;
 
-  protected constructor(options: LayerOptions) {
+  protected constructor(options: BaseLayerOptions) {
     super();
 
     /**
@@ -115,7 +91,7 @@ export default abstract class BaseLayer extends BaseObject {
     /**
      * @type {Object<string, *>}
      */
-    const properties: LayerOptions = Object.assign({}, options);
+    const properties: BaseLayerOptions = Object.assign({}, options);
     if (typeof options.properties === 'object') {
       delete properties.properties;
       Object.assign(properties, options.properties);

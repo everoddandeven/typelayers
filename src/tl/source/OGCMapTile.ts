@@ -1,7 +1,7 @@
 /**
  * @module tl/source/OGCMapTile
  */
-import TileImage from './TileImage';
+import TileImageSource from './TileImageSource';
 import {TileLoadFunction} from '../Tile';
 import {getTileSetInfo, SourceInfo, TileSetInfo} from './ogcTileUtil';
 import {error as logError} from '../console';
@@ -30,7 +30,7 @@ export interface OGCMapTileOptions {
  * and tileset (http://www.opengis.net/spec/ogcapi-tiles-1/1.0/conf/tileset) conformance classes.
  * @api
  */
-class OGCMapTile extends TileImage {
+class OGCMapTile extends TileImageSource {
   /**
    * @param {Options} options OGC map tile options.
    */

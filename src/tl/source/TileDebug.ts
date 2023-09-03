@@ -5,19 +5,17 @@
 import XYZ from './XYZ';
 import {createCanvasContext2D} from '../dom';
 import {toSize} from '../size';
+import {ProjectionLike} from "../proj";
+import TileGrid from "../tilegrid/TileGrid";
+import {NearestDirectionFunction} from "../array";
 
-/**
- * @typedef {Object} Options
- * @property {import("../proj").ProjectionLike} [projection='EPSG:3857'] Optional projection.
- * @property {import("../tilegrid/TileGrid").default} [tileGrid] Tile grid.
- * @property {boolean} [wrapX=true] Whether to wrap the world horizontally.
- * @property {number|import("../array").NearestDirectionFunction} [zDirection=0]
- * Set to `1` when debugging `VectorTile` sources with a default configuration.
- * Choose whether to use tiles with a higher or lower zoom level when between integer
- * zoom levels. See {@link module:tl/tilegrid/TileGrid~TileGrid#getZForResolution}.
- * @property {string} [template='z:{z} x:{x} y:{y}'] Template for labeling the tiles.
- * Should include `{x}`, `{y}` or `{-y}`, and `{z}` placeholders.
- */
+interface TileDebugOptions {
+  projection?: ProjectionLike;
+  tileGrid?: TileGrid;
+  wrapX?: boolean;
+  zDirection?: number | NearestDirectionFunction;
+  template?: string;
+}
 
 /**
  * @classdesc
@@ -30,7 +28,7 @@ class TileDebug extends XYZ {
   /**
    * @param {Options} [options] Debug tile options.
    */
-  constructor(options) {
+  constructor(options?: TileDebugOptions) {
     /**
      * @type {Options}
      */
@@ -43,7 +41,8 @@ class TileDebug extends XYZ {
       wrapX: options.wrapX !== undefined ? options.wrapX : true,
       zDirection: options.zDirection,
       url: options.template || 'z:{z} x:{x} y:{y}',
-      tileLoadFunction: (tile, text) => {
+
+      tileLoadFunction: (tile, text: string): void => {
         const z = tile.getTileCoord()[0];
         const tileSize = toSize(this.tileGrid.getTileSize(z));
         const context = createCanvasContext2D(tileSize[0], tileSize[1]);

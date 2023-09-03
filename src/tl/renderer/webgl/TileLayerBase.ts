@@ -31,6 +31,8 @@ import TileSource from "../../source/Tile";
 import {UniformValue} from "../../webgl/Helper";
 import BaseTileLayer from "../../layer/BaseTile";
 import Projection from "../../proj/Projection";
+import TileGrid from "../../tilegrid/TileGrid";
+import {Coordinate} from "../../coordinate";
 
 export const Uniforms = {
   TILE_TRANSFORM: 'u_tileTransform',
@@ -152,7 +154,11 @@ export type BaseLayerType = BaseTileLayer;
  * @template {import("../../webgl/BaseTileRepresentation").default<TileType>} TileRepresentation
  * @extends {WebGLLayerRenderer<LayerType>}
  */
-class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType> extends WebGLLayerRenderer<LayerType> {
+abstract class WebGLBaseTileLayerRenderer<
+    LayerType extends BaseLayerType = BaseLayerType,
+    TileType extends Tile = Tile,
+    TileRepresentation extends BaseTileRepresentation = BaseTileRepresentation
+> extends WebGLLayerRenderer<LayerType> {
   public renderComplete: boolean;
   private tileTransform_: Transform;
   protected tempMat4: number[];
@@ -232,7 +238,7 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
   /**
    * @param {Options} options Options.
    */
-  reset(options) {
+  public reset(options: WebGLBaseTileLayerRendererOptions): void {
     super.reset({
       uniforms: options.uniforms,
     });
@@ -243,7 +249,7 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
    * @return {boolean} Tile is drawable.
    * @private
    */
-  isDrawableTile_(tile) {
+  private isDrawableTile_(tile: TileType): boolean {
     const tileLayer = this.getLayer();
     const tileState = tile.getState();
     const useInterimTilesOnError = tileLayer.getUseInterimTilesOnError();
@@ -259,7 +265,7 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
    * @param {import("../../Map").FrameState} frameState Frame state.
    * @return {boolean} Layer is ready to be rendered.
    */
-  prepareFrameInternal(frameState) {
+  protected prepareFrameInternal(frameState: FrameState): boolean {
     if (!this.projection_) {
       this.projection_ = frameState.viewState.projection;
     } else if (frameState.viewState.projection !== this.projection_) {
@@ -285,9 +291,7 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
    * @return {TileRepresentation} A new tile representation
    * @protected
    */
-  createTileRepresentation(options) {
-    return abstract();
-  }
+  protected abstract createTileRepresentation(options: BaseTileRepresentation<TileType>): TileRepresentation;
 
   /**
    * @param {import("../../Map").FrameState} frameState Frame state.
@@ -296,13 +300,13 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
    * @param {TileRepresentationLookup} tileRepresentationLookup The zoom level.
    * @param {number} preload Number of additional levels to load.
    */
-  enqueueTiles(
-    frameState,
-    extent,
-    initialZ,
-    tileRepresentationLookup,
-    preload
-  ) {
+  public enqueueTiles(
+    frameState: FrameState,
+    extent: Extent,
+    initialZ: number,
+    tileRepresentationLookup: TileRepresentationLookup,
+    preload: number
+  ): void {
     const viewState = frameState.viewState;
     const tileLayer = this.getLayer();
     const tileSource = <TileSource>tileLayer.getRenderSource();
@@ -317,7 +321,7 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
     const wantedTiles = frameState.wantedTiles[tileSourceKey];
     const tileRepresentationCache = this.tileRepresentationCache;
 
-    const map = tileLayer.getMapInternal();
+    const map = tileLayer.getMap();
     const minZ = Math.max(
       initialZ - preload,
       tileGrid.getMinZoom(),
@@ -440,29 +444,29 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
    * @param {number} alpha Alpha
    * @protected
    */
-  renderTile(
-    tileRepresentation,
-    tileTransform,
-    frameState,
-    renderExtent,
-    tileResolution,
-    tileSize,
-    tileOrigin,
-    tileExtent,
-    depth,
-    gutter,
-    alpha
-  ) {}
+  protected abstract renderTile(
+    tileRepresentation: TileRepresentation,
+    tileTransform: Transform,
+    frameState: FrameState,
+    renderExtent: Extent,
+    tileResolution: number,
+    tileSize: Size,
+    tileOrigin: Coordinate,
+    tileExtent: Extent,
+    depth: number,
+    gutter: number,
+    alpha: number
+  ): void;
 
-  drawTile_(
-    frameState,
-    tileRepresentation,
-    tileZ,
-    gutter,
-    extent,
-    alphaLookup,
-    tileGrid
-  ) {
+  private drawTile_(
+    frameState: FrameState,
+    tileRepresentation: TileRepresentation,
+    tileZ: number,
+    gutter: number,
+    extent: Extent,
+    alphaLookup: TileRepresentationLookup,
+    tileGrid: TileGrid
+  ): void {
     if (!tileRepresentation.loaded) {
       return;
     }
@@ -532,7 +536,7 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
    * @param {import("../../Map").FrameState} frameState Frame state.
    * @return {HTMLElement} The rendered element.
    */
-  renderFrame(frameState) {
+  public renderFrame(frameState: FrameState): HTMLElement {
     this.frameState = frameState;
     this.renderComplete = true;
     const gl = this.helper.getGL();
@@ -732,7 +736,7 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
    * @return {boolean} The tile coordinate is covered by loaded tiles at the alternate zoom level.
    * @private
    */
-  findAltTiles_(tileGrid, tileCoord, altZ, tileRepresentationLookup) {
+  private findAltTiles_(tileGrid: TileGrid, tileCoord: TileCoord, altZ: number, tileRepresentationLookup: TileRepresentationLookup): boolean {
     const tileRange = tileGrid.getTileRangeForTileCoordAndZ(
       tileCoord,
       altZ,
@@ -772,7 +776,7 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
     return covered;
   }
 
-  clearCache() {
+  public clearCache(): void {
     const tileRepresentationCache = this.tileRepresentationCache;
     tileRepresentationCache.forEach((tileRepresentation) =>
       tileRepresentation.dispose()
@@ -780,7 +784,7 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
     tileRepresentationCache.clear();
   }
 
-  removeHelper() {
+  public removeHelper(): void {
     if (this.helper) {
       this.clearCache();
     }
@@ -791,7 +795,7 @@ class WebGLBaseTileLayerRenderer<LayerType extends BaseLayerType = BaseLayerType
   /**
    * Clean up.
    */
-  disposeInternal() {
+  protected disposeInternal(): void {
     super.disposeInternal();
     delete this.frameState;
   }

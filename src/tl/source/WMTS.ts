@@ -2,79 +2,67 @@
  * @module tl/source/WMTS
  */
 
-import TileImage from './TileImage';
+import TileImageSource from './TileImageSource';
 import {appendParams} from '../uri';
-import {containsExtent} from '../extent';
-import {createFromCapabilitiesMatrixSet} from '../tilegrid/WMTS';
+import {containsExtent, Extent} from '../extent';
+import WMTSTileGrid, {createFromCapabilitiesMatrixSet} from '../tilegrid/WMTS';
 import {createFromTileUrlFunctions, expandUrl} from '../tileurlfunction';
-import {equivalent, get as getProjection, transformExtent} from '../proj';
+import {equivalent, get as getProjection, ProjectionLike, transformExtent} from '../proj';
+import {AttributionLike} from "./Source";
+import {ImageTile} from "../index";
+import {TileLoadFunction, UrlFunction} from "../Tile";
+import {NearestDirectionFunction} from "../array";
+import {TileCoord} from "../tilecoord";
+import Projection from "../proj/Projection";
 
-/**
- * Request encoding. One of 'KVP', 'REST'.
- * @typedef {'KVP' | 'REST'} RequestEncoding
- */
+export type RequestEncoding = 'KVP' | 'REST';
 
-/**
- * @typedef {Object} Options
- * @property {import("./Source").AttributionLike} [attributions] Attributions.
- * @property {boolean} [attributionsCollapsible=true] Attributions are collapsible.
- * @property {number} [cacheSize] Initial tile cache size. Will auto-grow to hold at least the number of tiles in the viewport.
- * @property {null|string} [crossOrigin] The `crossOrigin` attribute for loaded images.  Note that
- * you must provide a `crossOrigin` value if you want to access pixel data with the Canvas renderer.
- * See https://developer.mozilla.org/en-US/docs/Web/HTML/CORS_enabled_image for more detail.
- * @property {boolean} [interpolate=true] Use interpolated values when resampling.  By default,
- * linear interpolation is used when resampling.  Set to false to use the nearest neighbor instead.
- * @property {import("../tilegrid/WMTS").default} tileGrid Tile grid.
- * @property {import("../proj").ProjectionLike} [projection] Projection. Default is the view projection.
- * @property {number} [reprojectionErrorThreshold=0.5] Maximum allowed reprojection error (in pixels).
- * Higher values can increase reprojection performance, but decrease precision.
- * @property {RequestEncoding} [requestEncoding='KVP'] Request encoding.
- * @property {string} layer Layer name as advertised in the WMTS capabilities.
- * @property {string} style Style name as advertised in the WMTS capabilities.
- * @property {typeof import("../ImageTile").default} [tileClass]  Class used to instantiate image tiles. Default is {@link module:tl/ImageTile~ImageTile}.
- * @property {number} [tilePixelRatio=1] The pixel ratio used by the tile service.
- * For example, if the tile service advertizes 256px by 256px tiles but actually sends 512px
- * by 512px images (for retina/hidpi devices) then `tilePixelRatio`
- * should be set to `2`.
- * @property {string} [format='image/jpeg'] Image format. Only used when `requestEncoding` is `'KVP'`.
- * @property {string} [version='1.0.0'] WMTS version.
- * @property {string} matrixSet Matrix set.
- * @property {!Object} [dimensions] Additional "dimensions" for tile requests.
- * This is an object with properties named like the advertised WMTS dimensions.
- * @property {string} [url]  A URL for the service.
- * For the RESTful request encoding, this is a URL
- * template.  For KVP encoding, it is normal URL. A `{?-?}` template pattern,
- * for example `subdomain{a-f}.domain.com`, may be used instead of defining
- * each one separately in the `urls` option.
- * @property {import("../Tile").LoadFunction} [tileLoadFunction] Optional function to load a tile given a URL. The default is
- * ```js
- * function(imageTile, src) {
- *   imageTile.getImage().src = src;
- * };
- * ```
- * @property {Array<string>} [urls] An array of URLs.
- * Requests will be distributed among the URLs in this array.
- * @property {boolean} [wrapX=false] Whether to wrap the world horizontally.
- * @property {number} [transition] Duration of the opacity transition for rendering.
- * To disable the opacity transition, pass `transition: 0`.
- * @property {number|import("../array").NearestDirectionFunction} [zDirection=0]
- * Choose whether to use tiles with a higher or lower zoom level when between integer
- * zoom levels. See {@link module:tl/tilegrid/TileGrid~TileGrid#getZForResolution}.
- */
+export interface WMTSOptions {
+  attributions?: AttributionLike;
+  attributionsCollapsible?: boolean;
+  cacheSize?: number;
+  crossOrigin?: null | string;
+  interpolate?: boolean;
+  tileGrid: WMTSTileGrid;
+  projection?: ProjectionLike;
+  reprojectionErrorThreshold?: number;
+  requestEncoding?: RequestEncoding;
+  layer: string;
+  style: string;
+  tileClass?: typeof ImageTile;
+  tilePixelRatio?: number;
+  format?: string;
+  version?: string;
+  matrixSet: string;
+  dimensions?: {[key: string]: any};
+  url?: string;
+  tileLoadFunction?: TileLoadFunction;
+  urls?: Array<string>;
+  wrapX?: boolean;
+  transition?: number;
+  zDirection?: number | NearestDirectionFunction;
+}
 
 /**
  * @classdesc
  * Layer source for tile data from WMTS servers.
  * @api
  */
-class WMTS extends TileImage {
+class WMTS extends TileImageSource {
+  private version_: string;
+  private format_: string;
+  private dimensions_: { [p: string]: any };
+  private layer_: string;
+  private matrixSet_: string;
+  private style_: string;
+  private requestEncoding_: RequestEncoding;
   /**
    * @param {Options} options WMTS options.
    */
-  constructor(options) {
+  constructor(options: WMTSOptions) {
     // TODO: add support for TileMatrixLimits
 
-    const requestEncoding =
+    const requestEncoding: RequestEncoding =
       options.requestEncoding !== undefined ? options.requestEncoding : 'KVP';
 
     // FIXME: should we create a default tileGrid?
@@ -164,7 +152,7 @@ class WMTS extends TileImage {
    * URLs may contain OGC conform URL Template Variables: {TileMatrix}, {TileRow}, {TileCol}.
    * @param {Array<string>} urls URLs.
    */
-  setUrls(urls) {
+  public setUrls(urls: string[]): void {
     this.urls = urls;
     const key = urls.join('\n');
     this.setTileUrlFunction(
@@ -182,7 +170,7 @@ class WMTS extends TileImage {
    * @return {!Object} Dimensions.
    * @api
    */
-  getDimensions() {
+  public getDimensions(): {[key: string]: any} {
     return this.dimensions_;
   }
 
@@ -191,7 +179,7 @@ class WMTS extends TileImage {
    * @return {string} Format.
    * @api
    */
-  getFormat() {
+  public getFormat(): string {
     return this.format_;
   }
 
@@ -200,7 +188,7 @@ class WMTS extends TileImage {
    * @return {string} Layer.
    * @api
    */
-  getLayer() {
+  public getLayer(): string {
     return this.layer_;
   }
 
@@ -209,7 +197,7 @@ class WMTS extends TileImage {
    * @return {string} MatrixSet.
    * @api
    */
-  getMatrixSet() {
+  public getMatrixSet(): string {
     return this.matrixSet_;
   }
 
@@ -218,7 +206,7 @@ class WMTS extends TileImage {
    * @return {RequestEncoding} Request encoding.
    * @api
    */
-  getRequestEncoding() {
+  public getRequestEncoding(): RequestEncoding {
     return this.requestEncoding_;
   }
 
@@ -227,7 +215,7 @@ class WMTS extends TileImage {
    * @return {string} Style.
    * @api
    */
-  getStyle() {
+  public getStyle(): string {
     return this.style_;
   }
 
@@ -236,7 +224,7 @@ class WMTS extends TileImage {
    * @return {string} Version.
    * @api
    */
-  getVersion() {
+  public getVersion(): string {
     return this.version_;
   }
 
@@ -244,7 +232,7 @@ class WMTS extends TileImage {
    * @private
    * @return {string} The key for the current dimensions.
    */
-  getKeyForDimensions_() {
+  private getKeyForDimensions_(): string {
     const res = this.urls ? this.urls.slice(0) : [];
     for (const key in this.dimensions_) {
       res.push(key + '-' + this.dimensions_[key]);
@@ -257,7 +245,7 @@ class WMTS extends TileImage {
    * @param {Object} dimensions Dimensions.
    * @api
    */
-  updateDimensions(dimensions) {
+  public updateDimensions(dimensions: {[key: string]: any}): void {
     Object.assign(this.dimensions_, dimensions);
     this.setKey(this.getKeyForDimensions_());
   }
@@ -266,10 +254,10 @@ class WMTS extends TileImage {
    * @param {string} template Template.
    * @return {import("../Tile").UrlFunction} Tile URL function.
    */
-  createFromWMTSTemplate(template) {
+  public createFromWMTSTemplate(template: string): UrlFunction {
     const requestEncoding = this.requestEncoding_;
 
-    // context property names are lower case to allow for a case insensitive
+    // context property names are lower case to allow for a case-insensitive
     // replacement as some services use different naming conventions
     const context = {
       'layer': this.layer_,
@@ -298,7 +286,7 @@ class WMTS extends TileImage {
           });
 
     const tileGrid = /** @type {import("../tilegrid/WMTS").default} */ (
-      this.tileGrid
+      <WMTSTileGrid>this.tileGrid
     );
     const dimensions = this.dimensions_;
 
@@ -309,7 +297,7 @@ class WMTS extends TileImage {
        * @param {import("../proj/Projection").default} projection Projection.
        * @return {string|undefined} Tile URL.
        */
-      function (tileCoord, pixelRatio, projection) {
+      function (tileCoord: TileCoord, pixelRatio: number, projection: Projection): string | undefined {
         if (!tileCoord) {
           return undefined;
         }
@@ -359,7 +347,7 @@ export default WMTS;
  * @return {Options|null} WMTS source options object or `null` if the layer was not found.
  * @api
  */
-export function optionsFromCapabilities(wmtsCap, config) {
+export function optionsFromCapabilities(wmtsCap: {[key: string]: any}, config: {[key: string]: any}): WMTSOptions {
   const layers = wmtsCap['Contents']['Layer'];
   const l = layers.find(function (elt) {
     return elt['Identifier'] == config['layer'];
@@ -399,7 +387,7 @@ export function optionsFromCapabilities(wmtsCap, config) {
     (l['TileMatrixSetLink'][idx]['TileMatrixSet']);
   const matrixLimits =
     /** @type {Array<Object>} */
-    (l['TileMatrixSetLink'][idx]['TileMatrixSetLimits']);
+    (<{[key: string]: any}[]>l['TileMatrixSetLink'][idx]['TileMatrixSetLimits']);
 
   let format = /** @type {string} */ (l['Format'][0]);
   if ('format' in config) {
@@ -453,7 +441,7 @@ export function optionsFromCapabilities(wmtsCap, config) {
   let matrix = matrixSetObj.TileMatrix[0];
 
   // create default matrixLimit
-  let selectedMatrixLimit = {
+  let selectedMatrixLimit: {[key: string]: any} = {
     MinTileCol: 0,
     MinTileRow: 0,
     // subtract one to end up at tile top left
@@ -491,7 +479,7 @@ export function optionsFromCapabilities(wmtsCap, config) {
       matrixSetExtent[2],
     ];
   }
-  let extent = [
+  let extent: Extent = [
     origin[0] + tileSpanX * selectedMatrixLimit.MinTileCol,
     // add one to get proper bottom/right coordinate
     origin[1] - tileSpanY * (1 + selectedMatrixLimit.MaxTileRow),
@@ -530,7 +518,7 @@ export function optionsFromCapabilities(wmtsCap, config) {
   );
 
   /** @type {!Array<string>} */
-  const urls = [];
+  const urls: string[] = [];
   let requestEncoding = config['requestEncoding'];
   requestEncoding = requestEncoding !== undefined ? requestEncoding : '';
 

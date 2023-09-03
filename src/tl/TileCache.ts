@@ -3,7 +3,7 @@
  */
 import LRUCache from './structs/LRUCache';
 import {fromKey, getKey} from './tilecoord';
-import Tile from "./Tile";
+import Tile from "./layer/Tile";
 
 class TileCache extends LRUCache<Tile> {
   clear() {

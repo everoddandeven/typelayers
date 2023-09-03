@@ -18,7 +18,7 @@ import {LiteralStyle} from "./literal";
  * * Reading operators:
  *   * `['band', bandIndex, xOffset, yOffset]` For tile layers only. Fetches pixel values from band
  *     `bandIndex` of the source's data. The first `bandIndex` of the source data is `1`. Fetched values
- *     are in the 0..1 range. {@link import("../source/TileImage").default} sources have 4 bands: red,
+ *     are in the 0..1 range. {@link import("../source/TileImageSource").default} sources have 4 bands: red,
  *     green, blue and alpha. {@link import("../source/DataTile").default} sources can have any number
  *     of bands, depending on the underlying data source and
  *     {@link import("../source/GeoTIFF").Options configuration}. `xOffset` and `yOffset` are optional

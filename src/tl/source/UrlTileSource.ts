@@ -41,9 +41,9 @@ export interface UrlTileOptions {
  *
  * @fires import("./Tile").TileSourceEvent
  */
-abstract class UrlTile extends TileSource {
+abstract class UrlTileSource extends TileSource {
   private generateTileUrlFunction_: boolean;
-  private tileLoadFunction: TileLoadFunction;
+  protected tileLoadFunction: TileLoadFunction;
   protected urls?: string[];
   private tileLoadingKeys_: { [key: string]: boolean };
   /**
@@ -71,7 +71,7 @@ abstract class UrlTile extends TileSource {
      * @type {boolean}
      */
     this.generateTileUrlFunction_ =
-      this.tileUrlFunction === UrlTile.prototype.tileUrlFunction;
+      this.tileUrlFunction === UrlTileSource.prototype.tileUrlFunction;
 
     /**
      * @protected
@@ -237,4 +237,4 @@ abstract class UrlTile extends TileSource {
   }
 }
 
-export default UrlTile;
+export default UrlTileSource;
